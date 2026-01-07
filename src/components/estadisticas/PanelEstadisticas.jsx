@@ -1,13 +1,9 @@
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useCallback } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import gsap from 'gsap';
 
 /**
  * Panel de estadística individual con efecto glass
- * @param {String} titulo - Título del panel
- * @param {String|Number} valor - Valor principal
- * @param {String} descripcion - Descripción adicional
- * @param {Object} icono - Componente de icono de Lucide
- * @param {String} tendencia - 'arriba', 'abajo' o null
  */
 const PanelEstadisticas = ({ 
   titulo, 
@@ -17,36 +13,88 @@ const PanelEstadisticas = ({
   tendencia = null,
   delay = 0 
 }) => {
+  const containerRef = useRef(null);
+  const valueRef = useRef(null);
+  const iconRef = useRef(null);
+  const barRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Container entrada
+      gsap.fromTo(containerRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.5, delay, ease: 'power2.out' }
+      );
+
+      // Valor con efecto scale
+      if (valueRef.current) {
+        gsap.fromTo(valueRef.current,
+          { scale: 0 },
+          { scale: 1, duration: 0.5, delay: delay + 0.2, ease: 'back.out(2)' }
+        );
+      }
+
+      // Barra animada
+      if (barRef.current) {
+        gsap.fromTo(barRef.current,
+          { width: 0 },
+          { width: '100%', duration: 0.8, delay: delay + 0.3, ease: 'power2.out' }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [delay]);
+
+  const handleHover = useCallback((isHovering) => {
+    gsap.to(containerRef.current, {
+      y: isHovering ? -4 : 0,
+      scale: isHovering ? 1.02 : 1,
+      duration: 0.3,
+      ease: 'power2.out'
+    });
+  }, []);
+
+  const handleIconHover = useCallback((e, isHovering) => {
+    gsap.to(e.currentTarget, {
+      rotation: isHovering ? 10 : 0,
+      scale: isHovering ? 1.1 : 1,
+      duration: 0.3,
+      ease: 'power2.out'
+    });
+  }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      className="glass glass-hover rounded-2xl p-6"
+    <div
+      ref={containerRef}
+      onMouseEnter={() => handleHover(true)}
+      onMouseLeave={() => handleHover(false)}
+      className="glass glass-hover rounded-2xl p-6 cursor-pointer"
+      style={{ opacity: 0 }}
     >
       {/* Header con icono */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <p className="text-white/60 text-sm font-medium mb-1">{titulo}</p>
-          <motion.h3
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: delay + 0.2, type: 'spring', stiffness: 200 }}
+          <h3
+            ref={valueRef}
             className="text-4xl font-bold text-white"
+            style={{ transform: 'scale(0)' }}
           >
             {valor}
-          </motion.h3>
+          </h3>
         </div>
 
         {/* Icono */}
         {Icon && (
-          <motion.div
-            whileHover={{ rotate: 10, scale: 1.1 }}
+          <div
+            ref={iconRef}
+            onMouseEnter={(e) => handleIconHover(e, true)}
+            onMouseLeave={(e) => handleIconHover(e, false)}
             className="w-12 h-12 rounded-xl bg-f1-red/20 flex items-center justify-center"
           >
             <Icon className="w-6 h-6 text-f1-red" />
-          </motion.div>
+          </div>
         )}
       </div>
 
@@ -69,15 +117,13 @@ const PanelEstadisticas = ({
       </div>
 
       {/* Barra decorativa */}
-      <motion.div
-        initial={{ width: 0 }}
-        animate={{ width: '100%' }}
-        transition={{ delay: delay + 0.3, duration: 0.8 }}
+      <div
+        ref={barRef}
         className="h-1 bg-gradient-f1 rounded-full mt-4"
+        style={{ width: 0 }}
       />
-    </motion.div>
+    </div>
   );
 };
 
 export default PanelEstadisticas;
-

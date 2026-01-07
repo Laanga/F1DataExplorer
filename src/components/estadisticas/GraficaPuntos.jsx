@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { motion } from 'framer-motion';
+import gsap from 'gsap';
 import { getChartColor, assignColorsToData } from '../../utils/chartColors';
 import { getTeamColor, getTeamLogo, getDriverPhoto } from '../../utils/formatUtils';
 
@@ -7,7 +8,6 @@ import { getTeamColor, getTeamLogo, getDriverPhoto } from '../../utils/formatUti
 const CustomXAxisTick = ({ x, y, payload }) => {
   const countryCode = payload.value;
   
-  // Si es un código de país válido, mostrar bandera
   if (countryCode && countryCode.length === 2 && countryCode !== 'F1') {
     const flagUrl = `https://flagcdn.com/w20/${countryCode.toLowerCase()}.png`;
     
@@ -25,7 +25,6 @@ const CustomXAxisTick = ({ x, y, payload }) => {
     );
   }
   
-  // Fallback para casos especiales
   return (
     <g transform={`translate(${x},${y})`}>
       <text 
@@ -48,7 +47,6 @@ const CustomTeamLogoTick = ({ x, y, payload, data }) => {
     return null;
   }
 
-  // Buscar el equipo en los datos
   const teamData = data.find(item => 
     item.name === payload.value || 
     item.teamName === payload.value
@@ -106,7 +104,6 @@ const CustomTeamLogoTick = ({ x, y, payload, data }) => {
 const CustomDriverPhotoTick = ({ x, y, payload, data }) => {
   if (!payload || !payload.value) return null;
 
-  // Buscar los datos del piloto en el array de datos
   const item = data?.find(d => d.name === payload.value);
   
   const driverData = {
@@ -115,9 +112,7 @@ const CustomDriverPhotoTick = ({ x, y, payload, data }) => {
     color: item?.color || '#666'
   };
 
-  // Intentar obtener la foto del piloto usando los datos reales
   if (item?.driverData) {
-    // Crear objeto piloto con los datos de Ergast
     const driverObj = {
       name_acronym: item.driverData.code,
       full_name: `${item.driverData.givenName} ${item.driverData.familyName}`,
@@ -130,7 +125,6 @@ const CustomDriverPhotoTick = ({ x, y, payload, data }) => {
       driverData.photo = photo;
     }
   } else {
-    // Fallback: intentar obtener la foto basándose en el nombre/código
     const driverObj = {
       name_acronym: payload.value,
       full_name: payload.value,
@@ -185,14 +179,20 @@ const CustomDriverPhotoTick = ({ x, y, payload, data }) => {
 
 /**
  * Componente de gráfica reutilizable con estilo glass
- * @param {Array} datos - Datos para la gráfica
- * @param {String} tipo - 'linea' o 'barra'
- * @param {String} titulo - Título de la gráfica
- * @param {Array} lineas - Array de configuraciones para múltiples líneas (solo para tipo 'linea')
  */
 const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas = [], showTitle = true }) => {
-  
-  // Mapeo de códigos de país a nombres para el tooltip
+  const containerRef = useRef(null);
+
+  // Animación de entrada
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    gsap.fromTo(containerRef.current,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+    );
+  }, []);
+
   const countryNames = {
     'BH': 'Bahrain', 'SA': 'Saudi Arabia', 'AU': 'Australia', 'JP': 'Japan',
     'CN': 'China', 'US': 'United States', 'IT': 'Italy', 'MC': 'Monaco',
@@ -202,15 +202,10 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
     'QA': 'Qatar', 'AE': 'Abu Dhabi', 'DE': 'Germany', 'FR': 'France'
   };
 
-  // Configuración del tooltip personalizado
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      // Convertir código de país a nombre si es aplicable
       const displayLabel = countryNames[label] || label;
-      
-      // Obtener información adicional del primer payload
       const raceData = payload[0]?.payload;
-      const hasResults = raceData?.hasResults;
       const isFuture = raceData?.isFuture;
       const fullName = raceData?.fullName;
       
@@ -230,7 +225,7 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
                 <div 
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: entry.color }}
-                ></div>
+                />
                 <span className="text-gray-300 text-sm">{entry.name}:</span>
               </div>
               <span className="text-white font-bold text-sm">
@@ -250,7 +245,6 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
     return null;
   };
 
-  // Si no hay datos, mostramos un mensaje
   if (!datos || datos.length === 0) {
     return (
       <div className="glass rounded-2xl p-8">
@@ -263,16 +257,13 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+    <div
+      ref={containerRef}
       className={showTitle ? "glass rounded-2xl p-6" : ""}
+      style={{ opacity: 0 }}
     >
-      {/* Título */}
       {showTitle && <h3 className="text-xl font-bold text-white mb-6">{titulo}</h3>}
 
-      {/* Gráfica */}
       <ResponsiveContainer width="100%" height={300}>
         {tipo === 'barra' ? (
           <BarChart data={datos}>
@@ -331,7 +322,6 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
               domain={['dataMin - 10', 'dataMax + 20']}
             />
             <Tooltip content={<CustomTooltip />} />
-            {/* Renderizar múltiples líneas si se proporcionan */}
             {lineas.length > 0 ? (
               lineas.map((lineaConfig, index) => (
                 <Line 
@@ -341,7 +331,6 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
                   stroke={lineaConfig.color || getChartColor(index)} 
                   strokeWidth={lineaConfig.strokeWidth || 4}
                   dot={(props) => {
-                    // Mostrar puntos solo en carreras con resultados
                     if (props.payload?.hasResults) {
                       return (
                         <circle 
@@ -361,11 +350,6 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
                     fill: lineaConfig.color || getChartColor(index),
                     stroke: 'rgba(255,255,255,0.3)',
                     strokeWidth: 2
-                  }}
-                  strokeDasharray={(props) => {
-                    // Usar líneas punteadas para carreras futuras
-                    const futureRaces = datos.filter(race => race.isFuture);
-                    return futureRaces.length > 0 ? "5 5" : "0";
                   }}
                   animationDuration={1200}
                   name={lineaConfig.name || lineaConfig.dataKey}
@@ -390,9 +374,8 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
           </LineChart>
         )}
       </ResponsiveContainer>
-    </motion.div>
+    </div>
   );
 };
 
 export default GraficaPuntos;
-

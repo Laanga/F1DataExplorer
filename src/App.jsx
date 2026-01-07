@@ -5,6 +5,7 @@ import { YearProvider } from './contexts/YearContext';
 import Navbar from './components/layout/Navbar';
 import FondoAnimado from './components/ui/FondoAnimado';
 import Loader from './components/ui/Loader';
+import SeasonWarningPopup from './components/ui/SeasonWarningPopup';
 
 // Lazy loading de páginas
 const Inicio = lazy(() => import('./pages/Inicio'));
@@ -19,6 +20,9 @@ const AppContent = () => {
 
   return (
     <>
+      {/* Popup de aviso de temporada */}
+      <SeasonWarningPopup />
+      
       {/* Fondo animado global */}
       <FondoAnimado />
       
