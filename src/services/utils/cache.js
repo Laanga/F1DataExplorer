@@ -45,13 +45,13 @@ export const getCachedData = (key, ignoreExpiration = false) => {
  * @param {any} data - Datos a cachear
  */
 export const setCachedData = (key, data) => {
+  const cacheKey = CACHE_PREFIX + CACHE_VERSION + key;
+  const cacheData = {
+    data,
+    timestamp: Date.now()
+  };
+
   try {
-    const cacheKey = CACHE_PREFIX + CACHE_VERSION + key;
-    const cacheData = {
-      data,
-      timestamp: Date.now()
-    };
-    
     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
   } catch (error) {
     // Si localStorage está lleno o no disponible, solo advertir
@@ -93,7 +93,6 @@ export const clearCache = () => {
 export const clearExpiredCache = () => {
   try {
     const keys = Object.keys(localStorage);
-    let removedCount = 0;
     
     keys.forEach(key => {
       if (key.startsWith(CACHE_PREFIX + CACHE_VERSION)) {
@@ -105,13 +104,11 @@ export const clearExpiredCache = () => {
             
             if (isExpired) {
               localStorage.removeItem(key);
-              removedCount++;
             }
           }
         } catch (e) {
           // Si hay error al parsear, eliminar la entrada corrupta
           localStorage.removeItem(key);
-          removedCount++;
         }
       }
     });

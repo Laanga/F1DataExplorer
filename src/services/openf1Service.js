@@ -6,7 +6,7 @@
 // Importaciones para el export default
 import { getCurrentYear } from './config/apiConfig.js';
 import { clearCache } from './utils/cache.js';
-import { getDrivers, getDriverByNumber, getDriversFromErgast } from './api/driversService.js';
+import { getDrivers, getDriverByNumber, getDriversFromErgast, getDriverCareerStatsFromErgast, getDriverSeasonStatsFromErgast } from './api/driversService.js';
 import { getSessions, getRaces, getMeetings } from './api/sessionsService.js';
 import { getDriverStandings, getConstructorStandings, getDriverStandingsFromErgast, getConstructorStandingsFromErgast, getChampionshipStandings } from './api/standingsService.js';
 import { getStatistics, getSeasonProgress } from './api/statisticsService.js';
@@ -21,7 +21,9 @@ export { clearCache } from './utils/cache.js';
 export { 
   getDrivers, 
   getDriverByNumber,
-  getDriversFromErgast 
+  getDriversFromErgast,
+  getDriverCareerStatsFromErgast,
+  getDriverSeasonStatsFromErgast
 } from './api/driversService.js';
 
 // Servicios de sesiones y carreras
@@ -71,6 +73,8 @@ export default {
   getDrivers,
   getDriverByNumber,
   getDriversFromErgast,
+  getDriverCareerStatsFromErgast,
+  getDriverSeasonStatsFromErgast,
   
   // Sesiones y carreras
   getSessions,

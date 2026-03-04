@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Hook personalizado para manejar llamadas asíncronas con cleanup automático
@@ -13,6 +13,19 @@ export const useAsyncData = (asyncFunction, dependencies = [], options = {}) => 
   const [data, setData] = useState(options.initialData || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const dependencyList = Array.isArray(dependencies) ? dependencies : [];
+  const initialData = options.initialData || null;
+  const dependencyKey = JSON.stringify(dependencyList);
+  const asyncFunctionRef = useRef(asyncFunction);
+  const initialDataRef = useRef(initialData);
+
+  useEffect(() => {
+    asyncFunctionRef.current = asyncFunction;
+  }, [asyncFunction]);
+
+  useEffect(() => {
+    initialDataRef.current = initialData;
+  }, [initialData]);
 
   const fetchData = useCallback(async (controller) => {
     try {
@@ -20,7 +33,7 @@ export const useAsyncData = (asyncFunction, dependencies = [], options = {}) => 
       setError(null);
 
       // Ejecutar la función asíncrona pasando el signal para cancelación
-      const result = await asyncFunction(controller.signal);
+      const result = await asyncFunctionRef.current(controller.signal);
       
       // Solo actualizar el estado si no se canceló la petición
       if (!controller.signal.aborted) {
@@ -32,14 +45,14 @@ export const useAsyncData = (asyncFunction, dependencies = [], options = {}) => 
       if (err.name !== 'AbortError' && !controller.signal.aborted) {
         console.error('Error en useAsyncData:', err);
         setError(err.message || 'Error al cargar datos');
-        setData(options.initialData || null);
+        setData(initialDataRef.current);
       }
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);
       }
     }
-  }, dependencies);
+  }, []);
 
   useEffect(() => {
     // Crear un AbortController para esta petición
@@ -52,7 +65,7 @@ export const useAsyncData = (asyncFunction, dependencies = [], options = {}) => 
     return () => {
       controller.abort();
     };
-  }, [fetchData]);
+  }, [fetchData, dependencyKey]);
 
   // Función para refetch manual
   const refetch = useCallback(() => {
@@ -75,6 +88,13 @@ export const useAsyncDataParallel = (asyncFunctions, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const dependencyList = Array.isArray(dependencies) ? dependencies : [];
+  const dependencyKey = JSON.stringify(dependencyList);
+  const asyncFunctionsRef = useRef(asyncFunctions);
+
+  useEffect(() => {
+    asyncFunctionsRef.current = asyncFunctions;
+  }, [asyncFunctions]);
 
   const fetchData = useCallback(async (controller) => {
     try {
@@ -82,7 +102,7 @@ export const useAsyncDataParallel = (asyncFunctions, dependencies = []) => {
       setError(null);
 
       // Ejecutar todas las funciones en paralelo
-      const promises = asyncFunctions.map(fn => fn(controller.signal));
+      const promises = (asyncFunctionsRef.current || []).map(fn => fn(controller.signal));
       const results = await Promise.all(promises);
       
       if (!controller.signal.aborted) {
@@ -100,7 +120,7 @@ export const useAsyncDataParallel = (asyncFunctions, dependencies = []) => {
         setLoading(false);
       }
     }
-  }, dependencies);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,7 +129,7 @@ export const useAsyncDataParallel = (asyncFunctions, dependencies = []) => {
     return () => {
       controller.abort();
     };
-  }, [fetchData]);
+  }, [fetchData, dependencyKey]);
 
   const refetch = useCallback(() => {
     const controller = new AbortController();

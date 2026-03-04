@@ -1,8 +1,63 @@
 import { useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import gsap from 'gsap';
-import { getChartColor, assignColorsToData } from '../../utils/chartColors';
-import { getTeamColor, getTeamLogo, getDriverPhoto } from '../../utils/formatUtils';
+import { getChartColor } from '../../utils/chartColors';
+import { getDriverPhoto } from '../../utils/formatUtils';
+
+const EMPTY_DATA = [];
+const EMPTY_LINES = [];
+
+const COUNTRY_NAMES = {
+  BH: 'Bahrain', SA: 'Saudi Arabia', AU: 'Australia', JP: 'Japan',
+  CN: 'China', US: 'United States', IT: 'Italy', MC: 'Monaco',
+  ES: 'Spain', CA: 'Canada', AT: 'Austria', GB: 'Great Britain',
+  HU: 'Hungary', BE: 'Belgium', NL: 'Netherlands', AZ: 'Azerbaijan',
+  SG: 'Singapore', MX: 'Mexico', BR: 'Brazil', LV: 'Las Vegas',
+  QA: 'Qatar', AE: 'Abu Dhabi', DE: 'Germany', FR: 'France'
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const displayLabel = COUNTRY_NAMES[label] || label;
+    const raceData = payload[0]?.payload;
+    const isFuture = raceData?.isFuture;
+    const fullName = raceData?.fullName;
+
+    return (
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-lg p-4 shadow-xl border border-gray-700/50">
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-white font-semibold text-sm">{fullName || displayLabel}</p>
+          {isFuture && (
+            <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">
+              Próxima
+            </span>
+          )}
+        </div>
+        {payload.map((entry) => (
+          <div key={`${entry.dataKey || entry.name || 'series'}-${entry.color || 'color'}`} className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-gray-300 text-sm">{entry.name}:</span>
+            </div>
+            <span className="text-white font-bold text-sm">
+              {entry.value} pts
+              {isFuture && <span className="text-gray-400 text-xs ml-1">(proyectado)</span>}
+            </span>
+          </div>
+        ))}
+        {isFuture && (
+          <p className="text-xs text-gray-400 mt-2">
+            Los puntos se mantienen hasta que se dispute la carrera
+          </p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
 
 // Componente personalizado para mostrar banderas en el eje X
 const CustomXAxisTick = ({ x, y, payload }) => {
@@ -180,7 +235,7 @@ const CustomDriverPhotoTick = ({ x, y, payload, data }) => {
 /**
  * Componente de gráfica reutilizable con estilo glass
  */
-const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas = [], showTitle = true }) => {
+const GraficaPuntos = ({ datos = EMPTY_DATA, tipo = 'linea', titulo = 'Gráfica', lineas = EMPTY_LINES, showTitle = true }) => {
   const containerRef = useRef(null);
 
   // Animación de entrada
@@ -192,58 +247,6 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
       { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
     );
   }, []);
-
-  const countryNames = {
-    'BH': 'Bahrain', 'SA': 'Saudi Arabia', 'AU': 'Australia', 'JP': 'Japan',
-    'CN': 'China', 'US': 'United States', 'IT': 'Italy', 'MC': 'Monaco',
-    'ES': 'Spain', 'CA': 'Canada', 'AT': 'Austria', 'GB': 'Great Britain',
-    'HU': 'Hungary', 'BE': 'Belgium', 'NL': 'Netherlands', 'AZ': 'Azerbaijan',
-    'SG': 'Singapore', 'MX': 'Mexico', 'BR': 'Brazil', 'LV': 'Las Vegas',
-    'QA': 'Qatar', 'AE': 'Abu Dhabi', 'DE': 'Germany', 'FR': 'France'
-  };
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const displayLabel = countryNames[label] || label;
-      const raceData = payload[0]?.payload;
-      const isFuture = raceData?.isFuture;
-      const fullName = raceData?.fullName;
-      
-      return (
-        <div className="bg-gray-900/95 backdrop-blur-md rounded-lg p-4 shadow-xl border border-gray-700/50">
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-white font-semibold text-sm">{fullName || displayLabel}</p>
-            {isFuture && (
-              <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">
-                Próxima
-              </span>
-            )}
-          </div>
-          {payload.map((entry, index) => (
-            <div key={index} className="flex items-center justify-between gap-3 mb-1">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-gray-300 text-sm">{entry.name}:</span>
-              </div>
-              <span className="text-white font-bold text-sm">
-                {entry.value} pts
-                {isFuture && <span className="text-gray-400 text-xs ml-1">(proyectado)</span>}
-              </span>
-            </div>
-          ))}
-          {isFuture && (
-            <p className="text-xs text-gray-400 mt-2">
-              Los puntos se mantienen hasta que se dispute la carrera
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
 
   if (!datos || datos.length === 0) {
     return (
@@ -292,7 +295,7 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
             >
               {datos.map((entry, index) => (
                 <Cell 
-                  key={`cell-${index}`} 
+                  key={`cell-${entry.name || entry.countryCode || entry.teamName || entry.value || entry.color || 'unknown'}`}
                   fill={entry.color || getChartColor(index)} 
                 />
               ))}
@@ -325,7 +328,7 @@ const GraficaPuntos = ({ datos = [], tipo = 'linea', titulo = 'Gráfica', lineas
             {lineas.length > 0 ? (
               lineas.map((lineaConfig, index) => (
                 <Line 
-                  key={lineaConfig.dataKey || index}
+                  key={`${lineaConfig.dataKey || lineaConfig.name || 'line'}-${lineaConfig.color || 'default'}`}
                   type="monotone" 
                   dataKey={lineaConfig.dataKey || 'value'} 
                   stroke={lineaConfig.color || getChartColor(index)} 

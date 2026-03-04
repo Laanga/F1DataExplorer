@@ -138,14 +138,14 @@ const ClasificacionConstructores = () => {
         <div className="flex items-center gap-2 ml-auto">
           <div className={`w-2 h-2 rounded-full ${dataSource === 'real' ? 'bg-green-400' : 'bg-yellow-400'}`} />
           <span className="text-xs text-gray-400">
-            {dataSource === 'real' ? 'Datos Reales' : 'Datos Base'}
+            {dataSource === 'real' ? 'Fuente oficial' : 'Actualización de temporada'}
           </span>
         </div>
       </div>
 
       {constructores.length > 0 ? (
         <div className="space-y-4">
-          {constructores.slice(0, 10).map((constructor, index) => (
+          {constructores.slice(0, 11).map((constructor, index) => (
             <div
               key={constructor.constructor?.name || index}
               ref={(el) => (itemsRef.current[index] = el)}

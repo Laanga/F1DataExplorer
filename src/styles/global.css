@@ -4,16 +4,22 @@
 
 /* === Estilos base === */
 @layer base {
-  
+
   body {
     @apply bg-f1-dark text-white font-sans antialiased;
     background: radial-gradient(ellipse at center, rgba(225, 6, 0, 0.1) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(225, 6, 0, 0.05) 0%, transparent 50%);
+      radial-gradient(ellipse at 80% 20%, rgba(225, 6, 0, 0.05) 0%, transparent 50%);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
   }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
@@ -40,7 +46,11 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --card-surface-rgb: 255, 255, 255;
+    --card-shadow-rgb: 2, 6, 23;
+    --card-accent-rgb: 225, 6, 0;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -71,13 +81,125 @@
 
 /* === Utilidades personalizadas === */
 @layer utilities {
+
   /* Efectos glass */
   .glass {
-    @apply backdrop-blur-xl bg-white/10 border border-white/20 shadow-glass;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--card-surface-rgb), 0.22);
+    background:
+      linear-gradient(158deg,
+        rgba(var(--card-surface-rgb), 0.2) 0%,
+        rgba(var(--card-surface-rgb), 0.1) 34%,
+        rgba(8, 12, 24, 0.58) 100%);
+    backdrop-filter: blur(20px) saturate(145%);
+    box-shadow:
+      0 18px 38px rgba(var(--card-shadow-rgb), 0.45),
+      inset 0 1px 0 rgba(var(--card-surface-rgb), 0.36),
+      inset 0 -18px 32px rgba(var(--card-shadow-rgb), 0.35);
+  }
+
+  .glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(110deg,
+        rgba(var(--card-surface-rgb), 0.26) 0%,
+        rgba(var(--card-surface-rgb), 0.1) 32%,
+        rgba(var(--card-surface-rgb), 0) 58%),
+      radial-gradient(circle at 88% 118%,
+        rgba(var(--card-accent-rgb), 0.22) 0%,
+        rgba(var(--card-accent-rgb), 0) 44%);
+  }
+
+  .glass::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(var(--card-surface-rgb), 0.08) 0.5px, transparent 0.5px);
+    background-size: 4px 4px;
+    opacity: 0.45;
+    mix-blend-mode: screen;
   }
 
   .glass-hover {
-    @apply transition-all duration-300 hover:bg-white/20 hover:shadow-glass-hover hover:scale-[1.01];
+    transition:
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 260ms ease,
+      filter 260ms ease;
+  }
+
+  .glass-hover:hover {
+    transform: translateY(-5px) scale(1.012);
+    border-color: rgba(var(--card-surface-rgb), 0.36);
+    box-shadow:
+      0 26px 56px rgba(var(--card-shadow-rgb), 0.52),
+      inset 0 1px 0 rgba(var(--card-surface-rgb), 0.42),
+      inset 0 -22px 36px rgba(var(--card-shadow-rgb), 0.42);
+    filter: saturate(1.08);
+  }
+
+  .glass-dark {
+    position: relative;
+    border: 1px solid rgba(var(--card-surface-rgb), 0.16);
+    background:
+      linear-gradient(162deg,
+        rgba(20, 28, 46, 0.64) 0%,
+        rgba(12, 17, 30, 0.72) 56%,
+        rgba(8, 11, 21, 0.88) 100%);
+    backdrop-filter: blur(14px) saturate(130%);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--card-surface-rgb), 0.12),
+      0 12px 28px rgba(var(--card-shadow-rgb), 0.36);
+  }
+
+  .team-card-2026 {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--team-rgb, var(--card-accent-rgb)), 0.5);
+    background:
+      linear-gradient(155deg,
+        rgba(var(--team-rgb, var(--card-accent-rgb)), 0.24) 0%,
+        rgba(var(--team-rgb, var(--card-accent-rgb)), 0.11) 34%,
+        rgba(8, 12, 24, 0.65) 100%);
+    box-shadow:
+      0 20px 44px rgba(var(--team-rgb, var(--card-accent-rgb)), 0.22),
+      0 10px 24px rgba(var(--card-shadow-rgb), 0.36),
+      inset 0 1px 0 rgba(var(--card-surface-rgb), 0.24);
+  }
+
+  .team-card-2026::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(140px 90px at 94% 0%,
+        rgba(var(--team-rgb, var(--card-accent-rgb)), 0.24),
+        transparent 72%),
+      linear-gradient(120deg,
+        rgba(var(--card-surface-rgb), 0.18) 0%,
+        rgba(var(--card-surface-rgb), 0.04) 38%,
+        rgba(var(--card-surface-rgb), 0) 70%);
+  }
+
+  .pilot-card-2026 {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--team-rgb, var(--card-accent-rgb)), 0.44);
+    background:
+      linear-gradient(158deg,
+        rgba(var(--team-rgb, var(--card-accent-rgb)), 0.2) 0%,
+        rgba(var(--team-rgb, var(--card-accent-rgb)), 0.08) 40%,
+        rgba(8, 12, 24, 0.62) 100%);
+    box-shadow:
+      0 14px 34px rgba(var(--team-rgb, var(--card-accent-rgb)), 0.16),
+      0 8px 20px rgba(var(--card-shadow-rgb), 0.32),
+      inset 0 1px 0 rgba(var(--card-surface-rgb), 0.26);
   }
 
   /* Gradientes */
@@ -98,6 +220,189 @@
   .fade-in {
     animation: fadeIn 0.6s ease-in-out;
   }
+
+  /* ======= ROAD / ASPHALT TRACK SYSTEM ======= */
+
+  /* Main asphalt road strip */
+  .road-track {
+    position: absolute;
+    width: 56px;
+    top: 0;
+    bottom: 0;
+    background:
+      linear-gradient(180deg,
+        #1a1a1a 0%,
+        #222222 20%,
+        #1e1e1e 50%,
+        #222222 80%,
+        #1a1a1a 100%);
+    border-left: 3px solid #3a3a3a;
+    border-right: 3px solid #3a3a3a;
+    box-shadow:
+      inset 0 0 20px rgba(0, 0, 0, 0.6),
+      -4px 0 12px rgba(0, 0, 0, 0.4),
+      4px 0 12px rgba(0, 0, 0, 0.4);
+    z-index: 0;
+  }
+
+  /* Asphalt noise texture overlay */
+  .road-track::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 7px 7px, 11px 11px, 5px 5px;
+    pointer-events: none;
+  }
+
+  /* Dashed center line */
+  .road-dashed-line {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-image: repeating-linear-gradient(to bottom,
+        #f5f5f5 0px,
+        #f5f5f5 24px,
+        transparent 24px,
+        transparent 48px);
+    opacity: 0.7;
+    z-index: 1;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.15));
+  }
+
+  /* Edge line glow – left */
+  .road-track::after {
+    content: '';
+    position: absolute;
+    left: -3px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(225, 6, 0, 0.4) 15%,
+        rgba(225, 6, 0, 0.15) 50%,
+        rgba(225, 6, 0, 0.4) 85%,
+        transparent 100%);
+    z-index: 3;
+  }
+
+  /* Connector arm from road to card */
+  .road-connector {
+    position: absolute;
+    top: 50%;
+    height: 4px;
+    background:
+      linear-gradient(90deg,
+        #2a2a2a 0%,
+        #333333 40%,
+        #2a2a2a 100%);
+    border-top: 1px solid #444;
+    border-bottom: 1px solid #444;
+    z-index: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .road-connector::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 2px;
+    background-image: repeating-linear-gradient(to right,
+        rgba(255, 255, 255, 0.35) 0px,
+        rgba(255, 255, 255, 0.35) 8px,
+        transparent 8px,
+        transparent 16px);
+  }
+
+  /* Road connector facing left card */
+  .road-connector-left {
+    right: 50%;
+    left: auto;
+    width: calc(50% - 28px);
+    margin-right: 28px;
+  }
+
+  /* Road connector facing right card */
+  .road-connector-right {
+    left: 50%;
+    right: auto;
+    width: calc(50% - 28px);
+    margin-left: 28px;
+  }
+
+  /* Road marker node */
+  .road-marker {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    top: 50%;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 0.7rem;
+    color: #fff;
+    border: 3px solid #1a1a1a;
+    box-shadow:
+      0 0 0 3px rgba(225, 6, 0, 0.4),
+      0 4px 14px rgba(0, 0, 0, 0.6),
+      0 0 20px rgba(225, 6, 0, 0.25);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .road-marker-completed {
+    background: linear-gradient(135deg, #e10600 0%, #b91c1c 100%);
+  }
+
+  .road-marker-upcoming {
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+    box-shadow:
+      0 0 0 3px rgba(75, 85, 99, 0.4),
+      0 4px 14px rgba(0, 0, 0, 0.6);
+  }
+
+  .road-marker:hover {
+    transform: translate(-50%, -50%) scale(1.15);
+    box-shadow:
+      0 0 0 4px rgba(225, 6, 0, 0.6),
+      0 6px 20px rgba(225, 6, 0, 0.4),
+      0 0 30px rgba(225, 6, 0, 0.3);
+  }
+
+  /* ---- Mobile road layout ---- */
+  @media (max-width: 767px) {
+    .road-track {
+      width: 40px;
+    }
+
+    .road-connector-left,
+    .road-connector-right {
+      left: 40px;
+      right: auto;
+      width: 32px;
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    .road-marker {
+      width: 26px;
+      height: 26px;
+      font-size: 0.6rem;
+    }
+  }
 }
 
 @keyframes fadeIn {
@@ -105,6 +410,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -137,6 +443,7 @@
   * {
     border-color: hsl(var(--border));
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -147,9 +454,11 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
-    -ms-overflow-style: none; /* IE y Edge */
-    scrollbar-width: none;    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE y Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
-

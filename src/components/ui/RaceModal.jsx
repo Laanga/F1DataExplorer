@@ -6,10 +6,13 @@ import { getCompleteMeetingResults, categorizeSessionsByType } from '../../servi
 import { getDriverPhoto } from '../../utils/formatUtils';
 import { getTeamColor } from '../../utils/chartColors';
 
+const LOADING_DOT_IDS = ['dot-a', 'dot-b', 'dot-c'];
+
 const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
   const [meetingData, setMeetingData] = useState(null);
   const [loadingMeeting, setLoadingMeeting] = useState(false);
   const [activeTab, setActiveTab] = useState('race');
+  const [circuitImageError, setCircuitImageError] = useState(false);
   const [categorizedSessions, setCategorizedSessions] = useState({
     practice: [],
     qualifying: [],
@@ -29,18 +32,20 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
   const resultItemsRef = useRef([]);
 
   const isCompleted = carrera ? isCarreraCompletada(carrera.date_end) : false;
+  const circuitImageUrl = meeting?.circuit_image || '';
+  const circuitDisplayName = meeting?.circuit_short_name || meeting?.location || meeting?.meeting_name || 'Circuito';
 
   const loadMeetingData = async () => {
     if (!meeting?.meeting_key) return;
-    
+
     setLoadingMeeting(true);
     try {
       const data = await getCompleteMeetingResults(meeting.meeting_key);
       setMeetingData(data);
-      
+
       const categorized = categorizeSessionsByType(data.session_list);
       setCategorizedSessions(categorized);
-      
+
       const currentSessionType = (carrera?.session_name || carrera?.session_type || '').toLowerCase();
       if (currentSessionType.includes('practice') || currentSessionType.includes('free')) {
         setActiveTab('practice');
@@ -72,6 +77,10 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
       loadMeetingData();
     }
   }, [isOpen, meeting?.meeting_key]);
+
+  useEffect(() => {
+    setCircuitImageError(false);
+  }, [meeting?.meeting_key]);
 
   // Animación de entrada
   useEffect(() => {
@@ -121,7 +130,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
-      
+
       return () => {
         document.body.style.overflow = '';
         document.body.style.position = '';
@@ -202,7 +211,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
 
   const renderSessionResults = (sessionType) => {
     const sessions = categorizedSessions[sessionType] || [];
-    
+
     if (sessions.length === 0) {
       return (
         <div className="text-center py-8">
@@ -221,7 +230,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
           const sessionInfo = meetingData?.sessions[session.session_key]?.session_info || session;
           const typeTextForSession = String((sessionInfo.session_name || sessionInfo.session_type || sessionType || '')).toLowerCase();
           const showTimeColumn = /race|sprint/.test(typeTextForSession);
-          
+
           return (
             <div key={session.session_key} className="glass rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
@@ -233,7 +242,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                   {formatearFechaHora(sessionInfo.date_start)}
                 </span>
               </div>
-              
+
               {sessionResults.length > 0 ? (
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   <div className="sticky top-0 z-10 grid grid-cols-12 gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm border-b border-white/10">
@@ -286,16 +295,15 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                         style={{ borderLeft: `4px solid ${teamColor}` }}
                       >
                         <div className="col-span-2 flex items-center space-x-3 px-4 py-3">
-                          <div 
-                            className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-extrabold shadow-lg border ${
-                              pos === 1
-                                ? 'bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 text-black border-yellow-200/50 shadow-yellow-400/30'
-                                : pos === 2
+                          <div
+                            className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-extrabold shadow-lg border ${pos === 1
+                              ? 'bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 text-black border-yellow-200/50 shadow-yellow-400/30'
+                              : pos === 2
                                 ? 'bg-gradient-to-br from-gray-300 via-gray-400 to-slate-500 text-black border-gray-200/50 shadow-gray-400/30'
                                 : pos === 3
-                                ? 'bg-gradient-to-br from-amber-600 via-orange-500 to-amber-700 text-white border-amber-300/50 shadow-amber-500/30'
-                                : 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white border-slate-400/30 shadow-slate-600/20'
-                            }`}
+                                  ? 'bg-gradient-to-br from-amber-600 via-orange-500 to-amber-700 text-white border-amber-300/50 shadow-amber-500/30'
+                                  : 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white border-slate-400/30 shadow-slate-600/20'
+                              }`}
                           >
                             {pos}
                           </div>
@@ -313,7 +321,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                                 e.target.nextElementSibling.style.display = 'flex';
                               }}
                             />
-                            <div 
+                            <div
                               className="w-9 h-9 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center text-white font-bold text-xs border-2 border-white/20"
                               style={{ display: 'none' }}
                             >
@@ -363,191 +371,218 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
   };
 
   if (!carrera || !shouldRender) return null;
-  
+
   return (
     <>
       {/* Backdrop */}
       <div
         ref={backdropRef}
         onClick={handleClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         style={{ opacity: 0 }}
       >
-        {/* Modal */}
-        <div
-          ref={modalRef}
-          onClick={(e) => e.stopPropagation()}
-          className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full sm:max-w-5xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden"
-          style={{
-            opacity: 0,
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-          }}
-        >
-          {/* Header */}
-          <div ref={headerRef} className="relative p-4 sm:p-5 border-b border-white/10" style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
-          }}>
-            <button
-              ref={closeButtonRef}
-              onClick={handleClose}
-              onMouseEnter={(e) => handleCloseHover(e, true)}
-              onMouseLeave={(e) => handleCloseHover(e, false)}
-              className="absolute top-3 right-3 p-2.5 rounded-full glass border border-white/20 hover:border-white/30 transition-all duration-300"
-              style={{ background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)' }}
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-            
-            <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:space-x-3">
-              <div 
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center glass border border-white/20 shadow-glass ${
-                  isCompleted 
-                    ? 'bg-gradient-to-br from-green-500/30 to-green-600/30' 
+        <div className="relative" style={{ overflow: 'visible' }} onClick={(e) => e.stopPropagation()}>
+          {/* Close button - floating above modal */}
+          <button
+            ref={closeButtonRef}
+            onClick={handleClose}
+            onMouseEnter={(e) => handleCloseHover(e, true)}
+            onMouseLeave={(e) => handleCloseHover(e, false)}
+            className="absolute -top-4 -right-4 z-[60] p-2.5 rounded-full border border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(225,6,0,0.9) 0%, rgba(185,28,28,0.9) 100%)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 20px rgba(225,6,0,0.4), 0 2px 8px rgba(0,0,0,0.5)'
+            }}
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+
+          <div
+            ref={modalRef}
+            onClick={(e) => e.stopPropagation()}
+            className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full sm:max-w-5xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden"
+            style={{
+              opacity: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            {/* Header */}
+            <div ref={headerRef} className="relative p-4 sm:p-5 border-b border-white/10" style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
+            }}>
+              <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:space-x-3">
+                <div
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center glass border border-white/20 shadow-glass ${isCompleted
+                    ? 'bg-gradient-to-br from-green-500/30 to-green-600/30'
                     : 'bg-gradient-to-br from-blue-500/30 to-blue-600/30'
-                }`}
-              >
-                <span className="text-xl font-bold text-white">
-                  {carrera.session_name?.replace('Race', 'R') || 'R'}
-                </span>
-              </div>
-              
-              <div className="flex-1">
-                <h2 className="text-lg font-bold text-white mb-1">
-                  {meeting?.meeting_name || carrera.session_name || 'Gran Premio'}
-                </h2>
-                <div className="flex items-center space-x-2 text-white/60 text-xs">
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{meeting?.location || 'Ubicación no disponible'}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatearFecha(carrera.date_start)}</span>
+                    }`}
+                >
+                  <span className="text-xl font-bold text-white">
+                    {carrera.session_name?.replace('Race', 'R') || 'R'}
+                  </span>
+                </div>
+
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-white mb-1">
+                    {meeting?.meeting_name || carrera.session_name || 'Gran Premio'}
+                  </h2>
+                  <div className="flex items-center space-x-2 text-white/60 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="w-4 h-4" />
+                      <span>{meeting?.location || 'Ubicación no disponible'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-4 h-4" />
+                      <span>{formatearFecha(carrera.date_start)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Content */}
-          <div ref={contentRef} className="p-4 sm:p-6 space-y-6">
-            {/* Loading */}
-            {loadingMeeting && (
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="w-12 h-12 border-4 border-f1-red/30 border-t-f1-red rounded-full animate-spin" />
-                <div className="text-center">
-                  <p className="text-white font-medium mb-1">Cargando datos de la carrera...</p>
-                  <p className="text-white/60 text-sm">Obteniendo información detallada del evento</p>
+            {/* Content */}
+            <div ref={contentRef} className="p-4 sm:p-6 space-y-6">
+              {/* Loading */}
+              {loadingMeeting && (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="w-12 h-12 border-4 border-f1-red/30 border-t-f1-red rounded-full animate-spin" />
+                  <div className="text-center">
+                    <p className="text-white font-medium mb-1">Cargando datos de la carrera...</p>
+                    <p className="text-white/60 text-sm">Obteniendo información detallada del evento</p>
+                  </div>
+                  <div className="flex space-x-1">
+                    {LOADING_DOT_IDS.map((dotId, index) => (
+                      <div
+                        key={dotId}
+                        ref={(el) => (loadingDotsRef.current[index] = el)}
+                        className="w-2 h-2 bg-f1-red rounded-full"
+                        style={{ opacity: 0.5 }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex space-x-1">
-                  {[0, 1, 2].map((i) => (
+              )}
+
+              {/* Content when loaded */}
+              {!loadingMeeting && (
+                <>
+                  {/* Status Badge */}
+                  <div className="flex justify-center">
                     <div
-                      key={i}
-                      ref={(el) => (loadingDotsRef.current[i] = el)}
-                      className="w-2 h-2 bg-f1-red rounded-full"
-                      style={{ opacity: 0.5 }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Content when loaded */}
-            {!loadingMeeting && (
-              <>
-                {/* Status Badge */}
-                <div className="flex justify-center">
-                  <div 
-                    className={`px-6 py-3 rounded-2xl text-sm font-medium glass border transition-all duration-300 ${
-                      isCompleted
+                      className={`px-6 py-3 rounded-2xl text-sm font-medium glass border transition-all duration-300 ${isCompleted
                         ? 'bg-green-500/20 text-green-400 border-green-500/30'
                         : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                    }`}
-                  >
-                    {isCompleted ? '✅ Evento Completado' : '🏁 Próximo Evento'}
+                        }`}
+                    >
+                      {isCompleted ? '✅ Evento Completado' : '🏁 Próximo Evento'}
+                    </div>
                   </div>
-                </div>
 
-                {/* Event Info Toggle */}
-                {meeting && (
-                  <>
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => setShowEventInfo(v => !v)}
-                        onMouseEnter={(e) => handleTabHover(e, true)}
-                        onMouseLeave={(e) => handleTabHover(e, false)}
-                        className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${
-                          showEventInfo
+                  {/* Circuit shape */}
+                  {meeting && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <h3 className="font-semibold text-white text-sm">Mapa del circuito</h3>
+                        <span className="text-xs text-white/60 truncate">{circuitDisplayName}</span>
+                      </div>
+
+                      {circuitImageUrl && !circuitImageError ? (
+                        <img
+                          src={circuitImageUrl}
+                          alt={`Mapa de ${circuitDisplayName}`}
+                          className="w-full max-h-52 sm:max-h-60 object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+                          loading="lazy"
+                          onError={() => setCircuitImageError(true)}
+                        />
+                      ) : (
+                        <div className="text-sm text-white/70">
+                          El trazado del circuito no está disponible para este evento en la fuente actual.
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                  {/* Event Info Toggle */}
+                  {meeting && (
+                    <>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => setShowEventInfo(v => !v)}
+                          onMouseEnter={(e) => handleTabHover(e, true)}
+                          onMouseLeave={(e) => handleTabHover(e, false)}
+                          className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${showEventInfo
                             ? 'glass text-white border-white/20'
                             : 'text-white/80 glass-hover border-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Info className="w-3.5 h-3.5 text-white/90" />
-                        <span>{showEventInfo ? 'Ocultar info del evento' : 'Mostrar info del evento'}</span>
-                      </button>
-                    </div>
-                    
-                    {showEventInfo && (
-                      <div className="glass glass-hover rounded-2xl p-4 border border-white/10">
-                        <div className="flex items-center space-x-2 mb-3">
-                          <Users className="w-5 h-5 text-purple-400" />
-                          <h3 className="font-semibold text-white text-sm">Información del Evento</h3>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-white/80 text-sm">
-                          <div><span className="text-white/90">País:</span> {meeting.country_name || 'No disponible'}</div>
-                          <div><span className="text-white/90">Circuito:</span> {meeting.circuit_short_name || meeting.location || 'No disponible'}</div>
-                          <div><span className="text-white/90">Año:</span> {meeting.year || new Date(carrera.date_start).getFullYear()}</div>
-                          {meeting.gmt_offset && <div><span className="text-white/90">Zona Horaria:</span> GMT{meeting.gmt_offset}</div>}
-                        </div>
+                            }`}
+                        >
+                          <Info className="w-3.5 h-3.5 text-white/90" />
+                          <span>{showEventInfo ? 'Ocultar info del evento' : 'Mostrar info del evento'}</span>
+                        </button>
                       </div>
-                    )}
-                  </>
-                )}
 
-                {/* Tabs */}
-                <div className="glass rounded-2xl p-1.5 border border-white/10">
-                  <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:space-x-2">
-                    {['practice', 'qualifying', 'sprint', 'race'].map((tab) => {
-                      const hasData = categorizedSessions[tab]?.length > 0;
-                      return (
-                        <button
-                          key={tab}
-                          onClick={() => hasData && setActiveTab(tab)}
-                          onMouseEnter={(e) => hasData && handleTabHover(e, true)}
-                          onMouseLeave={(e) => hasData && handleTabHover(e, false)}
-                          disabled={!hasData}
-                          className={`flex-1 min-w-[140px] flex items-center justify-center space-x-2 py-2 px-3 sm:py-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 ${
-                            activeTab === tab
+                      {showEventInfo && (
+                        <div className="glass glass-hover rounded-2xl p-4 border border-white/10">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Users className="w-5 h-5 text-purple-400" />
+                            <h3 className="font-semibold text-white text-sm">Información del Evento</h3>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-white/80 text-sm">
+                            <div><span className="text-white/90">País:</span> {meeting.country_name || 'No disponible'}</div>
+                            <div><span className="text-white/90">Circuito:</span> {meeting.circuit_short_name || meeting.location || 'No disponible'}</div>
+                            <div><span className="text-white/90">Año:</span> {meeting.year || new Date(carrera.date_start).getFullYear()}</div>
+                            {meeting.gmt_offset && <div><span className="text-white/90">Zona Horaria:</span> GMT{meeting.gmt_offset}</div>}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Tabs */}
+                  <div className="glass rounded-2xl p-1.5 border border-white/10">
+                    <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:space-x-2">
+                      {['practice', 'qualifying', 'sprint', 'race'].map((tab) => {
+                        const hasData = categorizedSessions[tab]?.length > 0;
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => hasData && setActiveTab(tab)}
+                            onMouseEnter={(e) => hasData && handleTabHover(e, true)}
+                            onMouseLeave={(e) => hasData && handleTabHover(e, false)}
+                            disabled={!hasData}
+                            className={`flex-1 min-w-[140px] flex items-center justify-center space-x-2 py-2 px-3 sm:py-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 ${activeTab === tab
                               ? 'glass text-white shadow-glass border border-white/20'
                               : hasData
-                              ? 'text-white/70 hover:text-white hover:glass hover:border-white/10'
-                              : 'text-white/30 cursor-not-allowed'
-                          }`}
-                          style={activeTab === tab ? {
-                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(147, 51, 234, 0.3) 100%)'
-                          } : {}}
-                        >
-                          {getSessionIcon(tab)}
-                          <span className="text-sm">{getSessionName(tab)}</span>
-                          {hasData && (
-                            <span className="glass text-xs px-2 py-0.5 rounded-full border border-white/20">
-                              {categorizedSessions[tab].length}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                                ? 'text-white/70 hover:text-white hover:glass hover:border-white/10'
+                                : 'text-white/30 cursor-not-allowed'
+                              }`}
+                            style={activeTab === tab ? {
+                              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(147, 51, 234, 0.3) 100%)'
+                            } : {}}
+                          >
+                            {getSessionIcon(tab)}
+                            <span className="text-sm">{getSessionName(tab)}</span>
+                            {hasData && (
+                              <span className="glass text-xs px-2 py-0.5 rounded-full border border-white/20">
+                                {categorizedSessions[tab].length}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
 
-                {/* Session Results */}
-                <div className="min-h-[300px]">
-                  {renderSessionResults(activeTab)}
-                </div>
-              </>
-            )}
+                  {/* Session Results */}
+                  <div className="min-h-[300px]">
+                    {renderSessionResults(activeTab)}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

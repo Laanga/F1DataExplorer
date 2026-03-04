@@ -1,618 +1,500 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flag, Trophy, Timer, TrendingUp, ChevronDown, Zap, Calendar, Users, Shield, Github } from 'lucide-react';
+import { Flag, Trophy, TrendingUp, Users, Shield, Github } from 'lucide-react';
 import { getSeasonProgress, getDriverStandings, getDrivers } from '../services/openf1Service';
 import { useYear } from '../contexts/YearContext';
-import { getDriverPhoto } from '../utils/formatUtils';
+import { getDriverPhoto, getTeamLogo } from '../utils/formatUtils';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
+const isLocalDriverPhoto = (path) => typeof path === 'string' && path.startsWith('/drivers/');
+
+const resolveDriverLocalPhoto = (driverCandidate) => {
+  const photo = getDriverPhoto(driverCandidate);
+  return isLocalDriverPhoto(photo) ? photo : null;
+};
+
+const mapStandingsWithPhotos = (standings = [], drivers = []) => (
+  standings.slice(0, 3).map((standing) => {
+    const standingNumber = standing.driver?.permanentNumber?.toString();
+    const standingCode = standing.driver?.code?.toLowerCase();
+    const standingFullName = `${standing.driver?.givenName || ''} ${standing.driver?.familyName || ''}`.trim().toLowerCase();
+
+    const driverData = drivers.find((driver) =>
+      driver.driver_number?.toString() === standingNumber ||
+      driver.name_acronym?.toLowerCase() === standingCode ||
+      driver.full_name?.toLowerCase() === standingFullName
+    );
+
+    const localPhoto = resolveDriverLocalPhoto(
+      driverData || {
+        full_name: `${standing.driver?.givenName || ''} ${standing.driver?.familyName || ''}`.trim(),
+        familyName: standing.driver?.familyName,
+        givenName: standing.driver?.givenName,
+        code: standing.driver?.code,
+        name_acronym: standing.driver?.code
+      }
+    );
+
+    return {
+      ...standing,
+      headshot_url: driverData?.headshot_url,
+      driver_data: driverData,
+      local_photo: localPhoto
+    };
+  })
+);
+
 const Inicio = () => {
   const navigate = useNavigate();
   const { selectedYear } = useYear();
+  const homeDataYear = selectedYear;
   const [seasonProgress, setSeasonProgress] = useState(null);
   const [topDrivers, setTopDrivers] = useState([]);
+  const [failedPodiumPhotos, setFailedPodiumPhotos] = useState({});
   const [loading, setLoading] = useState(true);
-  
-  // Refs para animaciones
-  const heroRef = useRef(null);
-  const badgeRef = useRef(null);
-  const statsRef = useRef(null);
-  const driversRef = useRef(null);
-  const featuresRef = useRef(null);
-  const progressBarRef = useRef(null);
-  const speedLinesRef = useRef([]);
-  const ctaButtonRef = useRef(null);
-  const ctaShimmerRef = useRef(null);
-  const footerRef = useRef(null);
 
-  const repoUrl = 'https://github.com/Laanga/F1DataExplorer';
+  // Refs for massive animations
+  const heroTextRef = useRef(null);
+  const gridCardsRef = useRef([]);
+  const progressRef = useRef(null);
+  const podiumRef = useRef(null);
+  const bgLinesRef = useRef([]);
 
   useEffect(() => {
     const controller = new AbortController();
-
     const fetchData = async () => {
       try {
         const [progress, standings, drivers] = await Promise.all([
-          getSeasonProgress(),
-          getDriverStandings({ signal: controller.signal }),
-          getDrivers({ signal: controller.signal })
+          getSeasonProgress({ year: homeDataYear }),
+          getDriverStandings({ signal: controller.signal, year: homeDataYear }),
+          getDrivers({ signal: controller.signal, year: homeDataYear })
         ]);
-        
         if (!controller.signal.aborted) {
           setSeasonProgress(progress);
-          
-          const top3WithPhotos = standings.slice(0, 3).map(standing => {
-            const driverData = drivers.find(d => 
-              d.driver_number?.toString() === standing.driver?.permanentNumber?.toString() ||
-              d.name_acronym?.toLowerCase() === standing.driver?.code?.toLowerCase()
-            );
-            
-            return {
-              ...standing,
-              headshot_url: driverData?.headshot_url,
-              driver_data: driverData
-            };
-          });
-          
+          const top3WithPhotos = mapStandingsWithPhotos(standings, drivers);
           setTopDrivers(top3WithPhotos);
         }
       } catch (error) {
-        if (error.name !== 'AbortError' && !controller.signal.aborted) {
-          console.error('Error al obtener datos:', error);
-        }
+        if (error.name !== 'AbortError' && !controller.signal.aborted) console.error(error);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchData();
     return () => controller.abort();
-  }, []);
+  }, [homeDataYear]);
 
-  // Animaciones GSAP
+  useEffect(() => {
+    setFailedPodiumPhotos({});
+  }, [topDrivers, homeDataYear]);
+
+  // GSAP 2026 Epic Symmetric Animations
   useEffect(() => {
     if (loading) return;
 
     const ctx = gsap.context(() => {
-      // Speed lines animation
-      speedLinesRef.current.forEach((line, i) => {
+      // Background central racing lines parallax
+      bgLinesRef.current.forEach((line, i) => {
         if (!line) return;
         gsap.to(line, {
-          x: '300%',
-          opacity: 0,
-          duration: Math.random() * 2 + 1,
-          repeat: -1,
-          delay: Math.random() * 2,
-          ease: 'none'
+          yPercent: -100 * (i + 1),
+          ease: 'none',
+          scrollTrigger: {
+            trigger: document.body,
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 1.5
+          }
         });
       });
 
-      // Badge animation
-      if (badgeRef.current) {
-        gsap.fromTo(badgeRef.current,
-          { scale: 0, rotation: -180 },
-          { scale: 1, rotation: 0, duration: 0.8, delay: 0.3, ease: 'back.out(2)' }
-        );
-      }
+      // Hero Entry Timeline
+      const tl = gsap.timeline();
+      tl.fromTo(
+        heroTextRef.current.querySelectorAll('.char'),
+        { y: 150, opacity: 0, rotateX: 90 },
+        { y: 0, opacity: 1, rotateX: 0, duration: 1.2, stagger: 0.05, ease: 'power4.out', delay: 0.2 }
+      );
 
-      // Hero animation
-      if (heroRef.current) {
-        gsap.fromTo(heroRef.current,
-          { opacity: 0, y: 100 },
-          { opacity: 1, y: 0, duration: 1.2, ease: 'power3.out', delay: 0.2 }
-        );
-      }
-
-      // CTA shimmer
-      if (ctaShimmerRef.current) {
-        gsap.to(ctaShimmerRef.current, {
-          x: '200%',
-          duration: 2,
-          repeat: -1,
-          ease: 'none'
-        });
-      }
-
-      // Progress bar
-      if (progressBarRef.current && seasonProgress) {
-        gsap.fromTo(progressBarRef.current,
-          { width: 0 },
-          { width: `${seasonProgress.progressPercentage}%`, duration: 1.5, delay: 1, ease: 'power2.out' }
-        );
-      }
-
-      // Stats stagger
-      if (statsRef.current) {
-        gsap.fromTo(
-          statsRef.current.children,
-          { opacity: 0, y: 50, scale: 0.8 },
+      // Symmetrical Grid Cards Reveal
+      gridCardsRef.current.forEach((card) => {
+        if (!card) return;
+        gsap.fromTo(card,
+          { opacity: 0, y: 100, scale: 0.95 },
           {
             opacity: 1, y: 0, scale: 1,
-            duration: 0.8, stagger: 0.15, ease: 'back.out(1.7)',
-            scrollTrigger: { trigger: statsRef.current, start: 'top 80%' }
+            duration: 1, ease: 'expo.out',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 85%',
+            }
+          }
+        );
+      });
+
+      // Progress Bar Reveal
+      if (progressRef.current) {
+        gsap.fromTo(progressRef.current,
+          { opacity: 0, scaleX: 0.8 },
+          {
+            opacity: 1, scaleX: 1, duration: 1.5, ease: 'power3.out',
+            scrollTrigger: { trigger: progressRef.current, start: 'top 90%' }
           }
         );
       }
 
-      // Drivers podium
-      if (driversRef.current && topDrivers.length > 0) {
-        gsap.fromTo(
-          driversRef.current.children,
-          { opacity: 0, y: 100, rotateX: -30 },
+      // Symmetrical Podium Reveal
+      if (podiumRef.current && topDrivers.length > 0) {
+        const driversCards = podiumRef.current.querySelectorAll('.podium-card');
+        gsap.fromTo(driversCards,
+          { opacity: 0, y: 150 },
           {
-            opacity: 1, y: 0, rotateX: 0,
-            duration: 1, stagger: 0.2, ease: 'power3.out',
-            scrollTrigger: { trigger: driversRef.current, start: 'top 80%' }
-          }
-        );
-      }
-
-      // Features
-      if (featuresRef.current) {
-        gsap.fromTo(
-          featuresRef.current.children,
-          { opacity: 0, scale: 0, rotation: -180 },
-          {
-            opacity: 1, scale: 1, rotation: 0,
-            duration: 0.8, stagger: 0.1, ease: 'elastic.out(1, 0.5)',
-            scrollTrigger: { trigger: featuresRef.current, start: 'top 80%' }
+            opacity: 1, y: 0,
+            duration: 1.2, stagger: 0.2, ease: 'power3.out',
+            scrollTrigger: {
+              trigger: podiumRef.current,
+              start: 'top 80%',
+            }
           }
         );
       }
     });
 
     return () => ctx.revert();
-  }, [loading, topDrivers, seasonProgress]);
+  }, [loading, topDrivers]);
 
-  // Hover handlers
-  const handleCardHover = useCallback((e, isHovering) => {
-    gsap.to(e.currentTarget, {
-      y: isHovering ? -10 : 0,
-      scale: isHovering ? 1.02 : 1,
-      duration: 0.3,
-      ease: 'power2.out'
+  const splitText = (text) => {
+    return text.split('').map((char, index) => (
+      <span key={index} className="char inline-block">{char === ' ' ? '\u00A0' : char}</span>
+    ));
+  };
+
+  const handleHoverMove = (e) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+
+    gsap.to(card, {
+      rotateX: -y * 0.05,
+      rotateY: x * 0.05,
+      scale: 1.03,
+      duration: 0.4,
+      ease: 'power3.out'
     });
-  }, []);
+  };
 
-  const handleDriverCardHover = useCallback((e, isHovering, isMain = false) => {
+  const handleHoverLeave = (e) => {
     gsap.to(e.currentTarget, {
-      y: isHovering ? (isMain ? -15 : -10) : 0,
-      scale: isHovering ? (isMain ? 1.05 : 1.02) : 1,
-      duration: 0.3,
-      ease: 'power2.out'
+      rotateX: 0,
+      rotateY: 0,
+      scale: 1,
+      duration: 0.7,
+      ease: 'elastic.out(1, 0.5)'
     });
-  }, []);
+  };
 
-  const handleButtonHover = useCallback((e, isHovering) => {
-    gsap.to(e.currentTarget, {
-      scale: isHovering ? 1.05 : 1,
-      boxShadow: isHovering ? '0 20px 40px rgba(239, 68, 68, 0.4)' : '0 10px 25px rgba(239, 68, 68, 0.3)',
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-  }, []);
+  const hasRealPodium = topDrivers.length === 3;
+  const championshipLeader = topDrivers[0] || null;
+  const championshipRunnerUp = topDrivers[1] || null;
+  const leaderPoints = Number(championshipLeader?.points || 0);
+  const leaderGap = championshipRunnerUp ? Math.max(0, leaderPoints - Number(championshipRunnerUp.points || 0)) : 0;
 
-  const handleButtonTap = useCallback((e) => {
-    gsap.to(e.currentTarget, {
-      scale: 0.95,
-      duration: 0.1,
-      yoyo: true,
-      repeat: 1
-    });
-  }, []);
+  const getPodiumDriverKey = (driverStanding) => {
+    if (!driverStanding) return null;
+    const driver = driverStanding.driver || driverStanding.driver_data || {};
+    return String(
+      driver.driverId ||
+      driver.driver_number ||
+      driver.permanentNumber ||
+      driver.code ||
+      driver.name_acronym ||
+      `${driver.givenName || driver.first_name || ''}-${driver.familyName || driver.last_name || ''}`
+    ).toLowerCase();
+  };
 
-  const handleFeatureHover = useCallback((e, isHovering) => {
-    gsap.to(e.currentTarget, {
-      y: isHovering ? -10 : 0,
-      scale: isHovering ? 1.05 : 1,
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-  }, []);
+  const markPodiumPhotoAsFailed = (driverStanding) => {
+    const key = getPodiumDriverKey(driverStanding);
+    if (!key) return;
+    setFailedPodiumPhotos((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  };
 
-  const quickAccess = [
-    { title: 'Pilotos', description: 'Clasificación y perfiles de pilotos', icon: Users, color: '#ef4444', path: '/pilotos', gradient: 'from-red-500 to-red-700' },
-    { title: 'Equipos', description: 'Datos de constructores y equipos', icon: Shield, color: '#3b82f6', path: '/equipos', gradient: 'from-blue-500 to-blue-700' },
-    { title: 'Carreras', description: 'Calendario y resultados de carrera', icon: Flag, color: '#10b981', path: '/carreras', gradient: 'from-green-500 to-green-700' },
-    { title: 'Estadísticas', description: 'Visualizaciones del campeonato', icon: TrendingUp, color: '#f59e0b', path: '/estadisticas', gradient: 'from-amber-500 to-amber-700' }
-  ];
+  const getPodiumPhoto = (driverStanding) => {
+    if (!driverStanding) return null;
+    const key = getPodiumDriverKey(driverStanding);
+    if (key && failedPodiumPhotos[key]) return null;
+    return (
+      driverStanding.local_photo ||
+      resolveDriverLocalPhoto(driverStanding.driver_data || driverStanding.driver) ||
+      null
+    );
+  };
+
+  const leaderPhoto = getPodiumPhoto(championshipLeader);
+  const secondPlacePhoto = getPodiumPhoto(topDrivers[1]);
+  const firstPlacePhoto = getPodiumPhoto(topDrivers[0]);
+  const thirdPlacePhoto = getPodiumPhoto(topDrivers[2]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden flex flex-col">
+    <div className="min-h-screen overflow-hidden flex flex-col bg-f1-dark relative w-full">
+      {/* PERFECTLY SYMMETRICAL BACKGROUND */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-20 flex justify-center gap-12 sm:gap-32 w-full">
+        <div ref={el => bgLinesRef.current[0] = el} className="w-px h-[200vh] bg-gradient-to-b from-transparent via-f1-red to-transparent" />
+        <div ref={el => bgLinesRef.current[1] = el} className="w-px h-[200vh] bg-gradient-to-b from-transparent via-f1-red to-transparent" />
+        <div ref={el => bgLinesRef.current[2] = el} className="w-px h-[200vh] bg-gradient-to-b from-transparent via-f1-red to-transparent" />
+      </div>
+
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center justify-center px-4 relative">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              ref={el => speedLinesRef.current[i] = el}
-              className="absolute h-px bg-gradient-to-r from-transparent via-f1-red to-transparent"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: '-100%',
-                width: `${Math.random() * 300 + 100}px`,
-                opacity: 0
-              }}
-            />
-          ))}
-        </div>
+      <section id="hero-section" className="min-h-screen flex items-center justify-center px-4 relative z-10 w-full">
+        <div className="max-w-[1400px] mx-auto w-full text-center flex flex-col items-center">
 
-        <div className="max-w-6xl mx-auto w-full relative z-10" ref={heroRef} style={{ opacity: 0 }}>
-          {/* Badge */}
-          <div ref={badgeRef} className="flex justify-center mb-8" style={{ transform: 'scale(0)' }}>
-            <div className="glass rounded-full px-6 py-3 inline-flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-f1-red" />
-                <span className="text-white font-semibold">Temporada {selectedYear}</span>
-              </div>
-              <div className="w-px h-6 bg-white/20" />
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-f1-red rounded-full animate-pulse" />
-                <span className="text-white/70">En vivo</span>
-              </div>
-              {!loading && seasonProgress && seasonProgress.totalRaces > 0 && (
-                <>
-                  <div className="w-px h-6 bg-white/20" />
-                  <span className="text-white/70">
-                    {seasonProgress.completedRaces}/{seasonProgress.totalRaces} Carreras
-                  </span>
-                </>
-              )}
+          <div className="glass shadow-[0_0_20px_rgba(225,6,0,0.2)] rounded-full px-6 py-2 inline-flex items-center gap-3 mb-10 border border-white/10">
+            <span className="w-2.5 h-2.5 rounded-full bg-f1-red animate-pulse" />
+            <span className="text-sm tracking-widest font-sans font-bold text-white/90 uppercase">
+              TEMPORADA {homeDataYear}
+            </span>
+          </div>
+
+          <h1
+            ref={heroTextRef}
+            className="w-full text-center text-[clamp(3.25rem,15vw,11rem)] font-racing leading-[0.95] tracking-tight uppercase overflow-visible py-3 sm:py-4 px-2"
+            style={{ filter: 'drop-shadow(0px 10px 30px rgba(0,0,0,0.5))' }}
+          >
+            <span className="inline-block pb-[0.12em] text-f1-red" style={{ WebkitTextFillColor: '#e10600', textShadow: '0 0 40px rgba(225,6,0,0.6)' }}>
+              {splitText('F1 DATA')}
+            </span>
+          </h1>
+
+          {/* Symmetrical Scroll Indicator */}
+          <button
+            onClick={() => document.getElementById('grid-section')?.scrollIntoView({ behavior: 'smooth' })}
+            className="mt-20 flex flex-col items-center gap-4 group opacity-70 hover:opacity-100 transition-opacity"
+          >
+            <span className="text-xs uppercase tracking-widest text-white/50 font-bold group-hover:text-white transition-colors">Explorar</span>
+            <div className="w-px h-16 bg-gradient-to-b from-f1-red to-transparent relative overflow-hidden">
+              <div className="w-full h-1/2 bg-white absolute top-0 -translate-y-full group-hover:animate-[scroll-down_1.5s_ease-in-out_infinite]" />
             </div>
-          </div>
+          </button>
+        </div>
+      </section>
 
-          {/* Title */}
-          <div className="text-center mb-12">
-            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black text-white mb-6 leading-none">
-              <span className="block">F1</span>
-              <span className="block bg-gradient-to-r from-f1-red via-red-500 to-f1-red bg-clip-text text-transparent animate-pulse">
-                DATA
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed">
-              Consulta datos en tiempo real de la Fórmula 1. Clasificaciones, estadísticas 
-              y toda la información del campeonato en un solo lugar.
-            </p>
-          </div>
+      {/* PERFECTLY SYMMETRICAL MAIN GRID SECTION */}
+      <section id="grid-section" className="py-24 px-4 sm:px-8 relative z-10 w-full">
+        <div className="max-w-[1400px] mx-auto flex flex-col items-center gap-12 w-full">
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button
-              ref={ctaButtonRef}
-              onMouseEnter={(e) => handleButtonHover(e, true)}
-              onMouseLeave={(e) => handleButtonHover(e, false)}
-              onClick={(e) => { handleButtonTap(e); navigate('/pilotos'); }}
-              className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-f1-red to-red-700 text-white font-bold text-lg shadow-2xl overflow-hidden"
-            >
-              <div
-                ref={ctaShimmerRef}
-                className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12"
-                style={{ transform: 'translateX(-100%)' }}
-              />
-              <span className="relative flex items-center space-x-2">
-                <Zap className="w-5 h-5" />
-                <span>Ver Datos</span>
-              </span>
-            </button>
+          {/* Integrated Podium - now above cards */}
+          {!loading && (
+            <div className="w-full relative">
+              {hasRealPodium && championshipLeader && (
+                <div className="glass rounded-[2.5rem] border border-white/10 px-6 py-7 md:px-10 md:py-8 mb-6 relative overflow-hidden">
+                  <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,0,0.16)_0%,transparent_55%)]" />
+                  <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 md:gap-8">
+                    <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/20 bg-black/40 flex items-center justify-center shrink-0">
+                      {leaderPhoto ? (
+                        <img
+                          src={leaderPhoto}
+                          alt={`${championshipLeader.driver?.givenName || ''} ${championshipLeader.driver?.familyName || ''}`.trim()}
+                          className="w-full h-full object-cover object-top"
+                          onError={() => markPodiumPhotoAsFailed(championshipLeader)}
+                        />
+                      ) : (
+                        <span className="text-3xl font-racing text-white/80">
+                          {(championshipLeader.driver?.familyName || championshipLeader.driver?.code || '?').slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
 
-            <button
-              onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.05, duration: 0.3 })}
-              onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.3 })}
-              onClick={() => document.getElementById('stats-section')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-4 rounded-2xl glass glass-hover text-white font-semibold text-lg flex items-center space-x-2"
-            >
-              <span>Ver Más</span>
-              <ChevronDown className="w-5 h-5 animate-bounce" />
-            </button>
-          </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-f1-red font-bold mb-2">Líder del campeonato</p>
+                      <h3 className="text-4xl md:text-5xl font-racing text-white leading-[0.95]">
+                        {championshipLeader.driver?.givenName} {championshipLeader.driver?.familyName}
+                      </h3>
+                      <p className="text-white/65 text-sm mt-2 flex items-center justify-center md:justify-start gap-2">
+                        <img
+                          src={getTeamLogo(championshipLeader.constructor?.name)}
+                          alt=""
+                          className="w-5 h-5 object-contain"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        {championshipLeader.constructor?.name || 'Equipo'}
+                      </p>
+                    </div>
 
-          {/* Progress */}
-          {!loading && seasonProgress && (
-            <div className="max-w-2xl mx-auto">
-              <div className="glass rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-white/70 text-sm font-semibold">Progreso del Campeonato</span>
-                  <span className="text-f1-red font-bold">{seasonProgress.progressPercentage}%</span>
-                </div>
-                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    ref={progressBarRef}
-                    className="h-full bg-gradient-to-r from-f1-red to-red-500 rounded-full relative overflow-hidden"
-                    style={{ width: 0 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                    <div className="text-center md:text-right shrink-0">
+                      <p className="text-white text-5xl md:text-6xl font-black leading-none">{leaderPoints}</p>
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-white/45 mt-1">PTS</p>
+                      <p className="text-sm text-white/70 mt-2">
+                        {championshipRunnerUp ? `+${leaderGap} sobre P2` : 'Sin referencia P2'}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              )}
+
+              <div className="absolute inset-0 pointer-events-none rounded-[2.5rem] bg-[radial-gradient(circle_at_top,rgba(225,6,0,0.18)_0%,transparent_62%)]" />
+
+              <div className="glass relative z-10 rounded-[2.5rem] border border-white/10 px-6 py-10 md:px-10 md:py-14 overflow-hidden">
+                <div className="text-center mb-12 text-glow">
+                  <Trophy className="w-12 h-12 md:w-16 md:h-16 text-yellow-500 mx-auto mb-4 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
+                  <h2 className="text-5xl md:text-7xl font-racing text-white mb-2">PODIO OFICIAL</h2>
+                  <p className="text-[11px] sm:text-xs uppercase tracking-[0.3em] text-white/60 font-bold">
+                    Temporada {homeDataYear}
+                  </p>
+                </div>
+
+                {hasRealPodium ? (
+                  <div ref={podiumRef} className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-5 lg:gap-10 w-full max-w-6xl items-end mx-auto relative perspective-[2000px]">
+                    {/* P2 (Left) */}
+                    {topDrivers[1] && (
+                      <div className="podium-card w-full flex flex-col items-center group cursor-pointer" onMouseMove={handleHoverMove} onMouseLeave={handleHoverLeave}>
+                        <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-b from-gray-400/20 to-transparent p-2 mb-6 relative shadow-[0_0_30px_rgba(156,163,175,0.1)] border border-gray-400/20 group-hover:border-gray-400/50 transition-colors">
+                          {secondPlacePhoto ? (
+                            <img src={secondPlacePhoto} alt="" className="w-full h-full object-cover rounded-full filter contrast-125 object-top" onError={() => markPodiumPhotoAsFailed(topDrivers[1])} />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-black/40 flex items-center justify-center">
+                              <span className="text-3xl font-racing text-white/80">
+                                {(topDrivers[1].driver?.familyName || topDrivers[1].driver?.code || '?').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-400 text-f1-dark font-racing text-2xl flex items-center justify-center rounded-full shadow-lg border-2 border-f1-dark">2</div>
+                        </div>
+                        <h3 className="text-3xl font-racing text-white tracking-widest text-center">{topDrivers[1].driver?.familyName}</h3>
+                        <p className="text-gray-400 font-sans text-sm font-bold uppercase tracking-widest mt-2">{topDrivers[1].constructor?.name}</p>
+                        <div className="text-5xl font-black font-sans text-white mt-4">{topDrivers[1].points} <span className="text-lg text-gray-500 font-normal">PTS</span></div>
+                      </div>
+                    )}
+
+                    {/* P1 (Center) */}
+                    {topDrivers[0] && (
+                      <div className="podium-card w-full flex flex-col items-center group cursor-pointer z-10" onMouseMove={handleHoverMove} onMouseLeave={handleHoverLeave}>
+                        <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-gradient-to-b from-yellow-500/20 to-transparent p-2 mb-8 relative shadow-[0_0_50px_rgba(234,179,8,0.2)] border border-yellow-500/40 group-hover:border-yellow-500 transition-colors">
+                          <div className="absolute inset-0 rounded-full animate-[spin_10s_linear_infinite] border-t-2 border-yellow-500/50" />
+                          {firstPlacePhoto ? (
+                            <img src={firstPlacePhoto} alt="" className="w-full h-full object-cover rounded-full filter contrast-[1.15] object-top" onError={() => markPodiumPhotoAsFailed(topDrivers[0])} />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-black/40 flex items-center justify-center">
+                              <span className="text-4xl font-racing text-white/85">
+                                {(topDrivers[0].driver?.familyName || topDrivers[0].driver?.code || '?').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-b from-yellow-400 to-yellow-600 text-f1-dark font-racing text-4xl flex items-center justify-center rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)] border-4 border-f1-dark">1</div>
+                        </div>
+                        <h3 className="text-5xl font-racing text-yellow-500 text-glow tracking-widest text-center">{topDrivers[0].driver?.familyName}</h3>
+                        <p className="text-gray-300 font-sans text-sm font-bold uppercase tracking-widest mt-3">{topDrivers[0].constructor?.name}</p>
+                        <div className="text-7xl font-black font-sans text-white mt-6 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{topDrivers[0].points} <span className="text-xl text-yellow-500/50 font-normal">PTS</span></div>
+                      </div>
+                    )}
+
+                    {/* P3 (Right) */}
+                    {topDrivers[2] && (
+                      <div className="podium-card w-full flex flex-col items-center group cursor-pointer" onMouseMove={handleHoverMove} onMouseLeave={handleHoverLeave}>
+                        <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-b from-amber-700/20 to-transparent p-2 mb-6 relative shadow-[0_0_30px_rgba(180,83,9,0.1)] border border-amber-700/30 group-hover:border-amber-700/60 transition-colors">
+                          {thirdPlacePhoto ? (
+                            <img src={thirdPlacePhoto} alt="" className="w-full h-full object-cover rounded-full filter contrast-125 object-top" onError={() => markPodiumPhotoAsFailed(topDrivers[2])} />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-black/40 flex items-center justify-center">
+                              <span className="text-3xl font-racing text-white/80">
+                                {(topDrivers[2].driver?.familyName || topDrivers[2].driver?.code || '?').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-amber-700 text-white font-racing text-2xl flex items-center justify-center rounded-full shadow-lg border-2 border-f1-dark">3</div>
+                        </div>
+                        <h3 className="text-3xl font-racing text-white tracking-widest text-center">{topDrivers[2].driver?.familyName}</h3>
+                        <p className="text-gray-400 font-sans text-sm font-bold uppercase tracking-widest mt-2">{topDrivers[2].constructor?.name}</p>
+                        <div className="text-5xl font-black font-sans text-white mt-4">{topDrivers[2].points} <span className="text-lg text-gray-500 font-normal">PTS</span></div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="max-w-3xl mx-auto rounded-3xl border border-white/10 bg-black/30 px-6 py-8 text-center">
+                    <p className="text-white/85 font-semibold mb-2">Clasificación pendiente de actualización</p>
+                    <p className="text-white/60 text-sm">
+                      El podio aparecerá automáticamente en cuanto se publiquen resultados oficiales de la temporada {homeDataYear}.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
-        </div>
-      </section>
 
-      {/* Stats Section */}
-      <section id="stats-section" className="py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Temporada {selectedYear} en Números
-            </h2>
-            <p className="text-white/60 text-lg">Datos actualizados en tiempo real</p>
-          </div>
+          {/* 4 EVENLY SIZED CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full">
 
-          <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: Flag, color: 'f1-red', value: seasonProgress?.totalRaces || 24, label: 'Carreras Totales', gradient: 'from-f1-red/20' },
-              { icon: Trophy, color: 'green-400', value: seasonProgress?.completedRaces || 0, label: 'Completadas', gradient: 'from-green-500/20' },
-              { icon: Users, color: 'blue-400', value: 20, label: 'Pilotos Activos', gradient: 'from-blue-500/20' },
-              { icon: Shield, color: 'purple-400', value: 10, label: 'Equipos', gradient: 'from-purple-500/20' }
-            ].map((stat, i) => (
+              { title: "CARRERAS", icon: Flag, desc: "Calendario y resultados", path: "/carreras", color: "from-f1-red/20" },
+              { title: "PILOTOS", icon: Users, desc: "Perfiles y clasificaciones", path: "/pilotos", color: "from-blue-500/20" },
+              { title: "EQUIPOS", icon: Shield, desc: "Análisis de constructores", path: "/equipos", color: "from-green-500/20" },
+              { title: "MÉTRICAS", icon: TrendingUp, desc: "Estadísticas avanzadas", path: "/estadisticas", color: "from-amber-500/20" }
+            ].map((item, idx) => (
               <div
-                key={i}
-                onMouseEnter={(e) => handleCardHover(e, true)}
-                onMouseLeave={(e) => handleCardHover(e, false)}
-                className="glass glass-hover rounded-2xl p-6 text-center relative overflow-hidden group cursor-pointer"
-                style={{ opacity: 0 }}
+                key={idx}
+                ref={el => gridCardsRef.current[idx] = el}
+                onMouseMove={handleHoverMove} onMouseLeave={handleHoverLeave}
+                onClick={() => navigate(item.path)}
+                className="glass rounded-3xl p-8 aspect-square relative overflow-hidden group flex flex-col items-center justify-center text-center cursor-pointer border border-white/5 shadow-2xl"
+                style={{ perspective: '1000px' }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                <stat.icon className={`w-12 h-12 mx-auto mb-4 text-${stat.color}`} />
-                <p className="text-4xl font-bold text-white mb-2">{stat.value}</p>
-                <p className="text-white/60 text-sm">{stat.label}</p>
+                <div className={`absolute inset-0 bg-gradient-to-b ${item.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                <item.icon className="w-16 h-16 text-white mb-6 transform group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-500 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
+                <h3 className="text-3xl font-racing text-white mb-2 relative z-10 group-hover:text-f1-red transition-colors">{item.title}</h3>
+                <p className="text-gray-400 font-sans text-sm tracking-wide relative z-10">{item.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Podium */}
-      {!loading && topDrivers.length > 0 && (
-        <section className="py-20 px-4 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-f1-red/5 to-transparent pointer-events-none" />
-          
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Top 3 del Campeonato</h2>
-              <p className="text-white/60 text-lg">Los líderes actuales de la temporada</p>
-            </div>
-
-            <div ref={driversRef} className="flex flex-col md:flex-row items-end justify-center gap-6 px-4">
-              {/* 2nd place */}
-              {topDrivers[1] && (
-                <div
-                  onMouseEnter={(e) => handleDriverCardHover(e, true)}
-                  onMouseLeave={(e) => handleDriverCardHover(e, false)}
-                  className="glass glass-hover rounded-2xl p-6 w-full md:w-64 order-2 md:order-1 cursor-pointer"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto mb-4 relative">
-                      <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-br from-gray-300 to-gray-500 shadow-2xl border-4 border-gray-400">
-                        {(topDrivers[1].headshot_url || getDriverPhoto(topDrivers[1].driver_data)) ? (
-                          <img 
-                            src={topDrivers[1].headshot_url || getDriverPhoto(topDrivers[1].driver_data)} 
-                            alt={`${topDrivers[1].driver?.givenName} ${topDrivers[1].driver?.familyName}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-4xl font-black text-white">2</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center shadow-xl border-2 border-white">
-                        <span className="text-lg font-black text-white">2</span>
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">
-                      {topDrivers[1].driver?.givenName} {topDrivers[1].driver?.familyName}
-                    </h3>
-                    <p className="text-white/60 text-sm mb-4">{topDrivers[1].constructor?.name}</p>
-                    <div className="glass-dark rounded-xl p-3 mb-3">
-                      <p className="text-3xl font-bold text-white">{topDrivers[1].points}</p>
-                      <p className="text-white/60 text-xs">Puntos</p>
-                    </div>
-                    <p className="text-gray-300 font-bold text-lg">{topDrivers[1].wins || 0} <span className="text-white/60 text-xs">Victorias</span></p>
-                  </div>
-                </div>
-              )}
-
-              {/* 1st place */}
-              {topDrivers[0] && (
-                <div
-                  onMouseEnter={(e) => handleDriverCardHover(e, true, true)}
-                  onMouseLeave={(e) => handleDriverCardHover(e, false, true)}
-                  className="glass glass-hover rounded-2xl p-8 w-full md:w-80 order-1 md:order-2 relative overflow-hidden cursor-pointer"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-transparent to-transparent" />
-                  <div className="text-center relative z-10">
-                    <div className="w-32 h-32 mx-auto mb-4 relative">
-                      <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-2xl border-4 border-yellow-400">
-                        {(topDrivers[0].headshot_url || getDriverPhoto(topDrivers[0].driver_data)) ? (
-                          <img 
-                            src={topDrivers[0].headshot_url || getDriverPhoto(topDrivers[0].driver_data)} 
-                            alt={`${topDrivers[0].driver?.givenName} ${topDrivers[0].driver?.familyName}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Trophy className="w-16 h-16 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="absolute -bottom-2 -right-2 w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-2xl shadow-yellow-400/50 border-2 border-white">
-                        <Trophy className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      {topDrivers[0].driver?.givenName} {topDrivers[0].driver?.familyName}
-                    </h3>
-                    <p className="text-white/60 mb-4">{topDrivers[0].constructor?.name}</p>
-                    <div className="glass-dark rounded-xl p-4">
-                      <p className="text-4xl font-black text-yellow-400 mb-1">{topDrivers[0].points}</p>
-                      <p className="text-white/60 text-sm">Puntos</p>
-                    </div>
-                    <p className="mt-4 text-green-400 font-bold">{topDrivers[0].wins || 0} <span className="text-white/60 text-xs">Victorias</span></p>
-                  </div>
-                </div>
-              )}
-
-              {/* 3rd place */}
-              {topDrivers[2] && (
-                <div
-                  onMouseEnter={(e) => handleDriverCardHover(e, true)}
-                  onMouseLeave={(e) => handleDriverCardHover(e, false)}
-                  className="glass glass-hover rounded-2xl p-6 w-full md:w-64 order-3 cursor-pointer"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto mb-4 relative">
-                      <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-br from-amber-600 to-amber-800 shadow-2xl border-4 border-amber-600">
-                        {(topDrivers[2].headshot_url || getDriverPhoto(topDrivers[2].driver_data)) ? (
-                          <img 
-                            src={topDrivers[2].headshot_url || getDriverPhoto(topDrivers[2].driver_data)} 
-                            alt={`${topDrivers[2].driver?.givenName} ${topDrivers[2].driver?.familyName}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-4xl font-black text-white">3</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center shadow-xl border-2 border-white">
-                        <span className="text-lg font-black text-white">3</span>
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">
-                      {topDrivers[2].driver?.givenName} {topDrivers[2].driver?.familyName}
-                    </h3>
-                    <p className="text-white/60 text-sm mb-4">{topDrivers[2].constructor?.name}</p>
-                    <div className="glass-dark rounded-xl p-3 mb-3">
-                      <p className="text-3xl font-bold text-white">{topDrivers[2].points}</p>
-                      <p className="text-white/60 text-xs">Puntos</p>
-                    </div>
-                    <p className="text-amber-400 font-bold text-lg">{topDrivers[2].wins || 0} <span className="text-white/60 text-xs">Victorias</span></p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Quick Access */}
-      <section className="py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Explora los Datos</h2>
-            <p className="text-white/60 text-lg">Accede rápidamente a cada sección</p>
           </div>
 
-          <div ref={featuresRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickAccess.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={index}
-                  onMouseEnter={(e) => handleFeatureHover(e, true)}
-                  onMouseLeave={(e) => handleFeatureHover(e, false)}
-                  onClick={() => navigate(item.path)}
-                  className="glass glass-hover rounded-2xl p-6 cursor-pointer group relative overflow-hidden"
-                  style={{ opacity: 0 }}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300`} />
-                  
-                  <div className="relative z-10">
-                    <div 
-                      className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center shadow-2xl"
-                      style={{ 
-                        background: `linear-gradient(135deg, ${item.color}20, ${item.color}40)`,
-                        boxShadow: `0 8px 20px ${item.color}40`
-                      }}
-                    >
-                      <Icon className="w-8 h-8" style={{ color: item.color }} />
-                    </div>
-                    
-                    <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                    <p className="text-white/60 text-sm mb-4">{item.description}</p>
-                    
-                    <div className="flex items-center text-sm font-semibold group-hover:gap-2 transition-all">
-                      <span style={{ color: item.color }}>Ver más</span>
-                      <ChevronDown className="w-4 h-4 -rotate-90 group-hover:translate-x-1 transition-transform" style={{ color: item.color }} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer CTA */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div
-            onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.02, duration: 0.3 })}
-            onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.3 })}
-            className="glass rounded-3xl p-12 text-center relative overflow-hidden cursor-pointer"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-f1-red/20 via-transparent to-transparent" />
-            
-            <div className="relative z-10">
-              <Timer className="w-16 h-16 mx-auto mb-6 text-f1-red" />
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                ¿Listo para Explorar los Datos?
-              </h2>
-              <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto">
-                Consulta estadísticas detalladas, clasificaciones actualizadas y sigue el campeonato en tiempo real
-              </p>
-              <button
-                onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.05, duration: 0.3 })}
-                onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.3 })}
-                onClick={() => navigate('/estadisticas')}
-                className="px-8 py-4 rounded-2xl bg-gradient-to-r from-f1-red to-red-700 text-white font-bold text-lg shadow-2xl shadow-f1-red/30"
+          {/* FULL WIDTH CENTERED PROGRESS BAR */}
+          <div ref={progressRef} className="w-full glass rounded-[2rem] p-8 md:p-12 relative overflow-hidden shadow-2xl border border-white/5 flex flex-col items-center text-center">
+            <h4 className="text-2xl md:text-3xl font-racing text-white mb-8 tracking-widest">
+              PROGRESO DE TEMPORADA <span className="text-f1-red">{seasonProgress?.progressPercentage || 0}%</span>
+            </h4>
+            <div className="w-full max-w-4xl h-6 bg-white/5 rounded-full overflow-hidden relative shadow-inner">
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-f1-red/50 via-f1-red to-red-500"
+                style={{ width: `${seasonProgress?.progressPercentage || 0}%` }}
               >
-                Ver Clasificación
-              </button>
+                <div className="w-full h-full bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:20px_20px] animate-[shimmer_1s_linear_infinite]" />
+              </div>
+            </div>
+            <div className="flex justify-between w-full max-w-4xl mt-4 font-mono text-sm tracking-widest font-bold">
+              <span className="text-white/40">CARRERA 1</span>
+              <span className="text-white/80">{seasonProgress?.completedRaces || 0} / {seasonProgress?.totalRaces || 24} COMPLETADAS</span>
+              <span className="text-white/40">FINAL</span>
             </div>
           </div>
+
         </div>
       </section>
 
-      {/* Footer */}
-      <footer ref={footerRef} className="mt-auto px-4 py-8 border-t border-white/10 bg-black/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-center">
-          <a
-            href={repoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Ver repositorio en GitHub"
-            onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.03, duration: 0.3 })}
-            onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.3 })}
-            className="group inline-flex items-center gap-3 px-5 py-3 rounded-2xl glass glass-hover text-white/90 hover:text-white"
-          >
-            <Github className="w-6 h-6 text-white group-hover:text-f1-red transition-colors" />
-            <span className="font-semibold">Ver repositorio en GitHub</span>
-          </a>
-        </div>
+      {/* Symmetrical Footer */}
+      <footer className="mt-auto px-4 py-16 relative z-10 w-full overflow-hidden flex justify-center text-center">
+        <div className="absolute inset-0 bg-gradient-to-t from-f1-red/10 to-transparent pointer-events-none" />
+        <a
+          href="https://github.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group relative inline-flex items-center gap-4 px-10 py-5 rounded-full glass border border-white/10 hover:border-f1-red transition-all duration-500 overflow-hidden z-10 shadow-2xl"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-f1-red/20 via-transparent to-f1-red/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <Github className="w-6 h-6 text-white group-hover:scale-110 transition-transform relative z-10" />
+          <span className="font-sans font-bold text-white tracking-widest uppercase text-sm relative z-10">GitHub Repository</span>
+        </a>
       </footer>
 
       <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-shimmer {
-          animation: shimmer 1.5s ease-in-out infinite;
-        }
+         @keyframes scroll-down {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+         }
       `}</style>
     </div>
   );

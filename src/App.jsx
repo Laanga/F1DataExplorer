@@ -1,11 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
+import Lenis from 'lenis';
 import { YearProvider } from './contexts/YearContext';
 import Navbar from './components/layout/Navbar';
 import FondoAnimado from './components/ui/FondoAnimado';
 import Loader from './components/ui/Loader';
-import SeasonWarningPopup from './components/ui/SeasonWarningPopup';
 
 // Lazy loading de páginas
 const Inicio = lazy(() => import('./pages/Inicio'));
@@ -20,17 +20,9 @@ const AppContent = () => {
 
   return (
     <>
-      {/* Popup de aviso de temporada */}
-      <SeasonWarningPopup />
-      
-      {/* Fondo animado global */}
       <FondoAnimado />
-      
-      {/* Navbar fija */}
       <Navbar />
-      
-      {/* Contenedor principal - sin padding en home, con padding en otras páginas */}
-      <main className={isHomePage ? '' : 'min-h-screen pt-20 pb-10'}>
+      <main className={isHomePage ? '' : 'min-h-screen pt-28 pb-10'}>
         <Suspense fallback={
           <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
             <Loader mensaje="Cargando..." />
@@ -50,6 +42,29 @@ const AppContent = () => {
 };
 
 const App = () => {
+  useEffect(() => {
+    const lenis = new Lenis({
+      autoRaf: true,
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      allowNestedScroll: true,
+    });
+
+    if (typeof window !== 'undefined') {
+      window.__lenis = lenis;
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && window.__lenis === lenis) {
+        delete window.__lenis;
+      }
+      lenis.destroy();
+    };
+  }, []);
+
   return (
     <Router>
       <YearProvider>

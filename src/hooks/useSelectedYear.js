@@ -7,5 +7,3 @@ import { getCurrentF1Season } from '../services/config/apiConfig';
 export const getSelectedYear = () => {
   return getCurrentF1Season();
 };
-
-export default getSelectedYear;

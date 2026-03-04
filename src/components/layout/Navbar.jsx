@@ -6,12 +6,9 @@ import gsap from 'gsap';
 const Navbar = () => {
   const location = useLocation();
   const navRef = useRef(null);
+  const containerRef = useRef(null);
   const logoRef = useRef(null);
-  const logoGlowRef = useRef(null);
-  const logoLineRef = useRef(null);
   const itemsRef = useRef([]);
-  const activeIndicatorRef = useRef(null);
-  const speedLinesRef = useRef(null);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const navItems = [
@@ -22,55 +19,53 @@ const Navbar = () => {
     { path: '/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   ];
 
-  // Animación inicial del navbar
+  // Scroll effect to shrink navbar
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const nextIsScrolled = window.scrollY > 40;
+        setIsScrolled(prev => prev === nextIsScrolled ? prev : nextIsScrolled);
+        ticking = false;
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // GSAP initial animations
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
 
-      // Entrada del navbar
+      // Fade in floating container
       tl.fromTo(
-        navRef.current,
-        { y: -100, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+        containerRef.current,
+        { y: -80, opacity: 0, scale: 0.95 },
+        { y: 0, opacity: 1, scale: 1, duration: 1.2, ease: 'power4.out', delay: 0.2 }
       );
 
-      // Logo con efecto de arranque
+      // Logo pop
       tl.fromTo(
         logoRef.current,
-        { scale: 0, rotation: -180, opacity: 0 },
-        { scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: 'back.out(2)' },
-        '-=0.5'
+        { opacity: 0, rotateX: -90 },
+        { opacity: 1, rotateX: 0, duration: 0.8, ease: 'back.out(2)' },
+        '-=0.8'
       );
 
-      // Items del menú con stagger
+      // Nav item stagger
       const validItems = itemsRef.current.filter(Boolean);
       if (validItems.length > 0) {
         tl.fromTo(
           validItems,
-          { y: -50, opacity: 0, scale: 0.5 },
-          { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.08, ease: 'back.out(1.7)' },
-          '-=0.6'
-        );
-      }
-
-      // Animación de pulso sutil en el glow del logo
-      if (logoGlowRef.current) {
-        gsap.to(logoGlowRef.current, {
-          scale: 1.06,
-          opacity: 0.3,
-          duration: 2,
-          repeat: -1,
-          yoyo: true,
-          ease: 'power1.inOut'
-        });
-      }
-
-      // Línea decorativa inferior
-      if (logoLineRef.current) {
-        gsap.fromTo(
-          logoLineRef.current,
-          { scaleX: 0 },
-          { scaleX: 1, duration: 1, delay: 0.5, ease: 'power2.out' }
+          { opacity: 0, y: -20 },
+          { opacity: 1, y: 0, duration: 0.6, stagger: 0.05, ease: 'back.out(1.5)' },
+          '-=0.7'
         );
       }
     });
@@ -78,64 +73,6 @@ const Navbar = () => {
     return () => ctx.revert();
   }, []);
 
-  // Animación de las líneas de velocidad
-  useEffect(() => {
-    if (!speedLinesRef.current) return;
-
-    const ctx = gsap.context(() => {
-      const lines = speedLinesRef.current.querySelectorAll('.speed-line');
-      gsap.to(lines, {
-        x: '200%',
-        opacity: 0,
-        duration: 1.5,
-        stagger: 0.1,
-        repeat: -1,
-        ease: 'power2.in'
-      });
-    });
-
-    return () => ctx.revert();
-  }, []);
-
-  // Scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Efecto magnético en el logo
-  const handleLogoMouseMove = useCallback((e) => {
-    if (!logoRef.current) return;
-    const rect = logoRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const deltaX = (e.clientX - centerX) * 0.15;
-    const deltaY = (e.clientY - centerY) * 0.15;
-
-    gsap.to(logoRef.current, {
-      x: deltaX,
-      y: deltaY,
-      rotation: deltaX * 0.5,
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-  }, []);
-
-  const handleLogoMouseLeave = useCallback(() => {
-    if (!logoRef.current) return;
-    gsap.to(logoRef.current, {
-      x: 0,
-      y: 0,
-      rotation: 0,
-      duration: 0.5,
-      ease: 'elastic.out(1, 0.5)'
-    });
-  }, []);
-
-  // Hover en items
   const handleItemHover = useCallback((index, isHovering) => {
     const item = itemsRef.current[index];
     if (!item) return;
@@ -143,28 +80,8 @@ const Navbar = () => {
     gsap.to(item, {
       scale: isHovering ? 1.05 : 1,
       y: isHovering ? -3 : 0,
+      color: isHovering ? '#fff' : 'rgba(255,255,255,0.7)',
       duration: 0.3,
-      ease: 'power2.out'
-    });
-
-    // Shimmer effect
-    const shimmer = item.querySelector('.shimmer-effect');
-    if (shimmer && isHovering) {
-      gsap.fromTo(shimmer,
-        { x: '-100%' },
-        { x: '200%', duration: 0.6, ease: 'power2.out' }
-      );
-    }
-  }, []);
-
-  const handleItemTap = useCallback((index) => {
-    const item = itemsRef.current[index];
-    if (!item) return;
-    gsap.to(item, {
-      scale: 0.95,
-      duration: 0.1,
-      yoyo: true,
-      repeat: 1,
       ease: 'power2.out'
     });
   }, []);
@@ -172,125 +89,58 @@ const Navbar = () => {
   return (
     <nav
       ref={navRef}
-      className="fixed top-0 left-0 right-0 z-50 px-4 py-3"
-      style={{ opacity: 0 }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex justify-center w-full pointer-events-none ${isScrolled ? 'pt-2 sm:pt-4' : 'pt-4 sm:pt-6'}`}
     >
-      {/* Líneas de velocidad */}
-      <div ref={speedLinesRef} className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="speed-line absolute h-px bg-gradient-to-r from-transparent via-f1-red/20 to-transparent"
-            style={{
-              top: `${20 + i * 15}%`,
-              left: '-50%',
-              width: '150px'
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="max-w-7xl mx-auto relative">
-        <div className={`
-          glass rounded-2xl px-6 py-3 flex items-center justify-between
-          border border-white/10 transition-all duration-300
-          ${isScrolled ? 'shadow-2xl shadow-black/50' : 'shadow-xl shadow-black/30'}
-        `}>
-          {/* Logo */}
-          <Link
-            to="/"
-            className="flex items-center space-x-2 group relative z-10"
-            onMouseMove={handleLogoMouseMove}
-            onMouseLeave={handleLogoMouseLeave}
-          >
-            <div ref={logoRef} className="relative">
-              <div
-                ref={logoGlowRef}
-                className="absolute inset-0 bg-f1-red/15 rounded-full blur-lg -z-10"
-                style={{ opacity: 0.18 }}
-              />
-              <div className="text-f1-red text-2xl font-black tracking-tighter">F1</div>
-            </div>
-
-            <div className="relative overflow-hidden">
-              <span className="text-lg font-bold text-white/90 hidden sm:block group-hover:text-white transition-colors">
-                Data
-              </span>
-              <div
-                ref={logoLineRef}
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-f1-red to-red-500 origin-left"
-                style={{ transform: 'scaleX(0)' }}
-              />
-            </div>
-          </Link>
-
-          {/* Navegación */}
-          <div className="flex items-center space-x-1 sm:space-x-2 relative z-10">
-            {navItems.map((item, index) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className="relative group"
-                  onMouseEnter={() => handleItemHover(index, true)}
-                  onMouseLeave={() => handleItemHover(index, false)}
-                  onClick={() => handleItemTap(index)}
-                >
-                  <div
-                    ref={(el) => (itemsRef.current[index] = el)}
-                    className={`
-                      flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-xl
-                      transition-all duration-300 relative overflow-hidden
-                      ${isActive
-                        ? 'bg-f1-red text-white shadow-lg shadow-f1-red/30'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
-                      }
-                    `}
-                    style={{ opacity: 0 }}
-                  >
-                    {/* Shimmer effect */}
-                    <div className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full" />
-
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 relative z-10" />
-                    <span className="hidden md:block text-sm font-medium relative z-10">
-                      {item.label}
-                    </span>
-                  </div>
-
-                  {/* Indicador activo */}
-                  {isActive && (
-                    <div
-                      ref={activeIndicatorRef}
-                      className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full overflow-hidden"
-                    >
-                      <div
-                        className="h-full w-full bg-gradient-to-r from-transparent via-f1-red to-transparent animate-slide"
-                        style={{ animation: 'slideIndicator 1.5s linear infinite' }}
-                      />
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
+      <div
+        ref={containerRef}
+        className={`pointer-events-auto flex items-center justify-between px-6 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] glass rounded-full ring-1 ring-white/10 ${isScrolled ? 'w-[90%] sm:w-[80vw] lg:w-[1000px] shadow-[0_8px_32px_rgba(225,6,0,0.15)] bg-f1-dark/60' : 'w-[95%] sm:w-[90vw] lg:w-[1100px] shadow-[0_16px_40px_rgba(0,0,0,0.4)] bg-f1-dark/40'}`}
+      >
+        {/* Logo */}
+        <Link to="/" className="relative flex items-center space-x-2 group">
+          <div ref={logoRef} className="relative z-10 flex items-center">
+            <span className="text-xl sm:text-2xl font-racing tracking-wider text-f1-red text-glow">
+              F1
+            </span>
+            <span className="ml-[2px] text-sm sm:text-base font-sans font-bold uppercase tracking-widest text-white/90 group-hover:text-white transition-colors duration-300">
+              Data
+            </span>
           </div>
+          <div className="absolute inset-0 bg-f1-red/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        </Link>
 
-          {/* Espaciador */}
-          <div className="w-20 sm:w-24 relative z-10" />
+        {/* Navigation Items */}
+        <div className="flex items-center space-x-1 sm:space-x-3 md:space-x-6">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                ref={(el) => (itemsRef.current[index] = el)}
+                className={`relative flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-300 overflow-hidden ${isActive ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'}`}
+                onMouseEnter={() => handleItemHover(index, true)}
+                onMouseLeave={() => handleItemHover(index, false)}
+              >
+                <Icon className={`w-[18px] h-[18px] sm:w-[20px] sm:h-[20px] transition-colors duration-300 ${isActive ? 'text-f1-red' : 'group-hover:text-white'}`} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="hidden lg:block text-sm font-medium tracking-wide">
+                  {item.label}
+                </span>
+
+                {/* Active Highlight Glow */}
+                {isActive && (
+                  <div className="absolute inset-0 border border-f1-red/30 rounded-full bg-gradient-to-t from-f1-red/10 to-transparent z-[-1]" />
+                )}
+                {/* Active Indicator Dot (Mobile/Tablet) */}
+                {isActive && (
+                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-f1-red lg:hidden shadow-[0_0_8px_rgba(225,6,0,0.8)]" />
+                )}
+              </Link>
+            );
+          })}
         </div>
-
-        {/* Línea decorativa inferior */}
-        <div className="absolute -bottom-1 left-0 right-0 h-px bg-gradient-to-r from-transparent via-f1-red/30 to-transparent" />
       </div>
-
-      <style>{`
-        @keyframes slideIndicator {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </nav>
   );
 };

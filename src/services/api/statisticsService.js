@@ -6,6 +6,8 @@ import { getDriverStandingsFromErgast, getConstructorStandingsFromErgast } from 
 import { getSelectedYear } from '../../hooks/useSelectedYear.js';
 import { getDriverTeamColor } from '../../utils/chartColors.js';
 
+const CONSTRUCTORS_DISPLAY_LIMIT = 11;
+
 // Mapeo de países para circuitos de F1
 const circuitCountryMapping = {
   'albert_park': 'AU',
@@ -90,8 +92,8 @@ const getCountryFromCircuit = (circuitName, circuitId) => {
  */
 
 export const getStatistics = async (options = {}) => {
-  const { signal } = options;
-  const selectedYear = getSelectedYear();
+  const { signal, year } = options;
+  const selectedYear = year ?? getSelectedYear();
   const cacheKey = `statistics_${selectedYear}`;
   
   const cachedData = getCachedData(cacheKey);
@@ -104,15 +106,15 @@ export const getStatistics = async (options = {}) => {
     
     // Obtener datos base
     const [drivers, sessions, meetings] = await Promise.all([
-      getDrivers({ signal }),
-      getSessions(),
-      getMeetings({ signal })
+      getDrivers({ signal, year: selectedYear }),
+      getSessions(null, { year: selectedYear }),
+      getMeetings({ signal, year: selectedYear })
     ]);
 
     // Intentar obtener datos reales de clasificaciones
     const [driverStandings, constructorStandings] = await Promise.all([
-      getDriverStandingsFromErgast(),
-      getConstructorStandingsFromErgast()
+      getDriverStandingsFromErgast({ signal, year: selectedYear }),
+      getConstructorStandingsFromErgast({ signal, year: selectedYear })
     ]);
 
     const totalRaces = getTotalRacesForYear(selectedYear);
@@ -146,7 +148,7 @@ export const getStatistics = async (options = {}) => {
     if (hasRealData) {
       // Usar datos reales
       statistics.topDrivers = driverStandings.slice(0, 20);
-      statistics.topConstructors = constructorStandings.slice(0, 10);
+      statistics.topConstructors = constructorStandings.slice(0, CONSTRUCTORS_DISPLAY_LIMIT);
       statistics.championshipLeader = driverStandings[0] || null;
       statistics.constructorLeader = constructorStandings[0] || null;
       statistics.totalPoints = driverStandings.reduce((sum, driver) => sum + driver.points, 0);
@@ -356,8 +358,9 @@ export const getPointsEvolution = async (topCount = 3) => {
   }
 };
 
-export const getSeasonProgress = async () => {
-  const selectedYear = getSelectedYear();
+export const getSeasonProgress = async (options = {}) => {
+  const { year } = options;
+  const selectedYear = year ?? getSelectedYear();
   const cacheKey = `season_progress_${selectedYear}`;
   
   const cachedData = getCachedData(cacheKey);
@@ -368,7 +371,7 @@ export const getSeasonProgress = async () => {
   try {
   
     
-    const sessions = await getSessions('Race');
+    const sessions = await getSessions('Race', { year: selectedYear });
     const totalRaces = getTotalRacesForYear(selectedYear);
     const completedRaces = sessions.filter(session => 
       new Date(session.date_start) < new Date()

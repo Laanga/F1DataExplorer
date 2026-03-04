@@ -53,12 +53,8 @@ export default {
   			}
   		},
   		fontFamily: {
-  			sans: [
-  				'Inter',
-  				'SF Pro Display',
-  				'system-ui',
-  				'sans-serif'
-  			]
+  			sans: ['Outfit', 'system-ui', 'sans-serif'],
+  			racing: ['"Racing Sans One"', 'cursive']
   		},
   		backdropBlur: {
   			xs: '2px'
@@ -98,4 +94,3 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 }
-

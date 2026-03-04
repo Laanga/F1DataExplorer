@@ -119,7 +119,11 @@ export const getTeamColor = (teamNameOrColor) => {
     'Sauber': '#52E252',
     'Kick Sauber': '#52E252',
     'Williams Racing': '#64C4FF',
-    'Williams': '#64C4FF'
+    'Williams': '#64C4FF',
+    'Audi': '#C8102E',
+    'Audi F1 Team': '#C8102E',
+    'Cadillac': '#1D4ED8',
+    'Cadillac F1 Team': '#1D4ED8'
   };
   
   const teamName = teamNameOrColor?.toLowerCase() || '';
@@ -191,7 +195,11 @@ export const getTeamLogo = (teamName) => {
     'Sauber': '/teams/kick.png',
     'Kick Sauber': '/teams/kick.png',
     'Williams Racing': '/teams/williams.png',
-    'Williams': '/teams/williams.png'
+    'Williams': '/teams/williams.png',
+    'Audi': '/teams/audi.png',
+    'Audi F1 Team': '/teams/audi.png',
+    'Cadillac': '/teams/cadillac.png',
+    'Cadillac F1 Team': '/teams/cadillac.png'
   };
   
   // Buscar coincidencia exacta primero
@@ -218,6 +226,8 @@ export const getTeamLogo = (teamName) => {
   if (teamNameLower.includes('rb') || teamNameLower.includes('visa')) return '/teams/visa-red.png';
   if (teamNameLower.includes('sauber') || teamNameLower.includes('kick')) return '/teams/kick.png';
   if (teamNameLower.includes('williams')) return '/teams/williams.png';
+  if (teamNameLower.includes('audi')) return '/teams/audi.png';
+  if (teamNameLower.includes('cadillac')) return '/teams/cadillac.png';
   
   // Logo por defecto si no se encuentra
   return '/teams/default.png';
@@ -267,6 +277,10 @@ export const getDriverPhoto = (driver) => {
     colapinto: '/drivers/aCOy_ydWJ-7kSCnB_2025-colapinto.avif',
     lawson: '/drivers/Z_J86HdAxsiBwXP1_2025-lawson-RB.avif',
     tsunoda: '/drivers/Z_J86XdAxsiBwXP2_2025-tsunoda-RBR.avif',
+    bottas: '/drivers/aXCOGgIvOtkhBw5R_2026-bottas.png',
+    perez: '/drivers/aXCOHAIvOtkhBw5T_2026-perez.png',
+    lindblad: '/drivers/aXCPIwIvOtkhBw55_2026-lindblad.png',
+    linvand: '/drivers/aXCPIwIvOtkhBw55_2026-lindblad.png',
   };
 
   // Intentar múltiples formas de obtener el apellido
@@ -319,7 +333,10 @@ export const getDriverPhoto = (driver) => {
       'bea': 'bearman',
       'bor': 'bortoleto',
       'doo': 'doohan',
-      'had': 'hadjar'
+      'had': 'hadjar',
+      'bot': 'bottas',
+      'per': 'perez',
+      'lin': 'lindblad'
     };
     
     const mappedName = acronymMappings[acronym];

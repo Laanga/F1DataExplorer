@@ -75,12 +75,22 @@ export const generateColorPalette = (count) => {
  * @returns {Array} Array de datos con colores asignados
  */
 export const assignColorsToData = (data, nameKey = 'name') => {
-  return data.map((item, index) => ({
-    ...item,
-    color: getChartColor(index),
-    fill: getChartColor(index), // Para recharts
-    stroke: getChartColor(index), // Para líneas
-  }));
+  return data.map((item, index) => {
+    const paletteSeed = String(item?.[nameKey] ?? index);
+    let hash = 0;
+    for (let i = 0; i < paletteSeed.length; i += 1) {
+      hash = (hash << 5) - hash + paletteSeed.charCodeAt(i);
+      hash |= 0;
+    }
+    const color = getChartColor(Math.abs(hash));
+
+    return {
+      ...item,
+      color,
+      fill: color, // Para recharts
+      stroke: color, // Para líneas
+    };
+  });
 };
 
 /**
@@ -109,6 +119,10 @@ export const TEAM_COLORS = {
   'Haas': '#ef4444', // Rojo Haas
   'Kick Sauber': '#10b981', // Verde Sauber
   'RB F1 Team': '#1e40af', // Azul RB (ex AlphaTauri)
+  'Audi': '#c8102e', // Rojo Audi
+  'Audi F1 Team': '#c8102e',
+  'Cadillac': '#1d4ed8', // Azul Cadillac
+  'Cadillac F1 Team': '#1d4ed8',
   
   // Nombres alternativos/abreviados
   'Red Bull': '#1e40af',
@@ -136,6 +150,8 @@ export const TEAM_COLORS = {
   'haas': '#ef4444',
   'sauber': '#10b981',
   'rb': '#1e40af',
+  'audi': '#c8102e',
+  'cadillac': '#1d4ed8',
 };
 
 /**
@@ -144,15 +160,16 @@ export const TEAM_COLORS = {
  * @returns {string} Color del equipo o color por defecto
  */
 export const getTeamColor = (teamName) => {
-  if (!teamName) return getChartColor(0);
+  const safeTeamName = String(teamName ?? '').trim();
+  if (!safeTeamName) return getChartColor(0);
   
   // Búsqueda directa
-  if (TEAM_COLORS[teamName]) {
-    return TEAM_COLORS[teamName];
+  if (TEAM_COLORS[safeTeamName]) {
+    return TEAM_COLORS[safeTeamName];
   }
   
   // Búsqueda por palabras clave (insensible a mayúsculas)
-  const teamNameLower = teamName.toLowerCase();
+  const teamNameLower = safeTeamName.toLowerCase();
   
   if (teamNameLower.includes('red bull')) {
     return '#1e40af'; // Azul Red Bull
@@ -184,6 +201,12 @@ export const getTeamColor = (teamName) => {
   if (teamNameLower.includes('rb') || teamNameLower.includes('racing bulls') || teamNameLower.includes('alphatauri')) {
     return '#1e40af'; // Azul RB
   }
+  if (teamNameLower.includes('audi')) {
+    return '#c8102e'; // Rojo Audi
+  }
+  if (teamNameLower.includes('cadillac')) {
+    return '#1d4ed8'; // Azul Cadillac
+  }
   
   return getChartColor(0);
 };
@@ -194,23 +217,23 @@ export const getTeamColor = (teamName) => {
  * @returns {string} Color del equipo del piloto
  */
 export const getDriverTeamColor = (piloto) => {
-  const teamName = piloto.constructor?.name || piloto.constructor?.constructorId || '';
-  
-  // Buscar coincidencia exacta primero
-  if (TEAM_COLORS[teamName]) {
-    return TEAM_COLORS[teamName];
+  if (!piloto || typeof piloto !== 'object') {
+    return getChartColor(0);
   }
-  
-  // Buscar coincidencia parcial (insensible a mayúsculas)
-  const teamNameLower = teamName.toLowerCase();
-  for (const [key, color] of Object.entries(TEAM_COLORS)) {
-    if (key.toLowerCase().includes(teamNameLower) || teamNameLower.includes(key.toLowerCase())) {
-      return color;
-    }
+
+  const teamName = String(
+    piloto.team_name ||
+    piloto.teamName ||
+    piloto.constructor?.name ||
+    piloto.constructor?.constructorId ||
+    ''
+  ).trim();
+
+  if (!teamName) {
+    return getChartColor(0);
   }
-  
-  // Si no encuentra coincidencia, usar color por defecto
-  return getChartColor(0);
+
+  return getTeamColor(teamName);
 };
 
 /**
