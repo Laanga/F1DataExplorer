@@ -7,6 +7,28 @@ import { safeRequest, delay } from '../utils/rateLimiter.js';
  * Servicio para obtener todas las sesiones de un meeting y sus resultados
  */
 
+const hasSessionEnded = (dateEnd) => {
+  if (!dateEnd) return false;
+
+  const parsedDate = new Date(dateEnd);
+  if (Number.isNaN(parsedDate.getTime())) return false;
+
+  return parsedDate.getTime() <= Date.now();
+};
+
+const isCompletedSessionWithoutResults = (results, dateEnd) => (
+  Array.isArray(results) && results.length === 0 && hasSessionEnded(dateEnd)
+);
+
+const hasStaleCompletedSessions = (meetingData) => {
+  const sessionList = Array.isArray(meetingData?.session_list) ? meetingData.session_list : [];
+
+  return sessionList.some((session) => {
+    const sessionResults = meetingData?.sessions?.[session.session_key]?.results || [];
+    return isCompletedSessionWithoutResults(sessionResults, session?.date_end);
+  });
+};
+
 /**
  * Obtiene todas las sesiones de un meeting específico
  * @param {number} meetingKey - Clave del meeting
@@ -48,11 +70,12 @@ export const getMeetingSessions = async (meetingKey) => {
  * @param {string} sessionType - Tipo de sesión (Practice, Qualifying, Sprint, Race)
  * @returns {Promise<Array>} Array de resultados de la sesión
  */
-export const getSessionResults = async (sessionKey, sessionType) => {
+export const getSessionResults = async (sessionKey, sessionType, options = {}) => {
+  const { sessionDateEnd } = options;
   const cacheKey = `session_results_${sessionKey}`;
   
   const cachedData = getCachedData(cacheKey);
-  if (cachedData) {
+  if (cachedData && !isCompletedSessionWithoutResults(cachedData, sessionDateEnd)) {
     return cachedData;
   }
 
@@ -106,7 +129,9 @@ export const getSessionResults = async (sessionKey, sessionType) => {
       }
     }
 
-    setCachedData(cacheKey, results);
+    if (!isCompletedSessionWithoutResults(results, sessionDateEnd)) {
+      setCachedData(cacheKey, results);
+    }
     return results;
   } catch (error) {
     console.error(`❌ Error al obtener resultados de la sesión ${sessionKey}:`, error.message);
@@ -150,7 +175,7 @@ export const getCompleteMeetingResults = async (meetingKey) => {
   const cacheKey = `complete_meeting_${meetingKey}`;
   
   const cachedData = getCachedData(cacheKey);
-  if (cachedData) {
+  if (cachedData && !hasStaleCompletedSessions(cachedData)) {
     return cachedData;
   }
 
@@ -166,7 +191,7 @@ export const getCompleteMeetingResults = async (meetingKey) => {
       try {
         // Obtener resultados y pilotos en paralelo (el rate limiter serializa si es necesario)
         const [results, drivers] = await Promise.all([
-          getSessionResults(session.session_key, sessionType),
+          getSessionResults(session.session_key, sessionType, { sessionDateEnd: session.date_end }),
           getSessionDrivers(session.session_key)
         ]);
         
@@ -205,7 +230,9 @@ export const getCompleteMeetingResults = async (meetingKey) => {
       session_list: sessions
     };
     
-    setCachedData(cacheKey, result);
+    if (!hasStaleCompletedSessions(result)) {
+      setCachedData(cacheKey, result);
+    }
     return result;
     
   } catch (error) {

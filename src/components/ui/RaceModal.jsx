@@ -7,18 +7,19 @@ import { getDriverPhoto } from '../../utils/formatUtils';
 import { getTeamColor } from '../../utils/chartColors';
 
 const LOADING_DOT_IDS = ['dot-a', 'dot-b', 'dot-c'];
+const createEmptySessionGroups = () => ({
+  practice: [],
+  qualifying: [],
+  sprint: [],
+  race: []
+});
 
 const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
   const [meetingData, setMeetingData] = useState(null);
   const [loadingMeeting, setLoadingMeeting] = useState(false);
   const [activeTab, setActiveTab] = useState('race');
   const [circuitImageError, setCircuitImageError] = useState(false);
-  const [categorizedSessions, setCategorizedSessions] = useState({
-    practice: [],
-    qualifying: [],
-    sprint: [],
-    race: []
-  });
+  const [categorizedSessions, setCategorizedSessions] = useState(createEmptySessionGroups);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -39,6 +40,8 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     if (!meeting?.meeting_key) return;
 
     setLoadingMeeting(true);
+    setMeetingData(null);
+    setCategorizedSessions(createEmptySessionGroups());
     try {
       const data = await getCompleteMeetingResults(meeting.meeting_key);
       setMeetingData(data);
@@ -80,6 +83,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
 
   useEffect(() => {
     setCircuitImageError(false);
+    setShowEventInfo(false);
   }, [meeting?.meeting_key]);
 
   // Animación de entrada
@@ -122,23 +126,28 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     return () => ctx.revert();
   }, [isOpen, shouldRender, loadingMeeting]);
 
-  // Bloquear scroll
+  // Bloquear scroll de fondo y pausar Lenis para dejar scroll nativo al modal.
   useEffect(() => {
-    if (isOpen) {
-      const scrollY = window.scrollY;
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
+    if (!isOpen) return undefined;
 
-      return () => {
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        window.scrollTo(0, scrollY);
-      };
-    }
+    const lenisInstance = window?.__lenis || window?.lenis;
+    const scrollY = window.scrollY;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+
+    lenisInstance?.stop?.();
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'contain';
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+      lenisInstance?.start?.();
+      window.scrollTo({ top: scrollY, behavior: 'auto' });
+    };
   }, [isOpen]);
 
   // Cerrar modal con animación
@@ -254,7 +263,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                     )}
                   </div>
 
-                  {sessionResults.slice(0, 20).map((result, index) => {
+                  {sessionResults.map((result, index) => {
                     const pos = result.position || index + 1;
                     const teamName = result.driver_info?.team_name || 'Equipo no disponible';
                     const teamColor = getTeamColor(teamName);
@@ -344,11 +353,6 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                     );
                   })}
 
-                  {sessionResults.length > 20 && (
-                    <p className="text-white/60 text-center text-xs mt-2">
-                      Mostrando top 20 de {sessionResults.length} pilotos
-                    </p>
-                  )}
                 </div>
               ) : loadingMeeting ? (
                 <div className="text-center py-4">
@@ -378,10 +382,13 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
       <div
         ref={backdropRef}
         onClick={handleClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-6"
+        data-lenis-prevent
+        data-lenis-prevent-wheel
+        data-lenis-prevent-touch
         style={{ opacity: 0 }}
       >
-        <div className="relative" style={{ overflow: 'visible' }} onClick={(e) => e.stopPropagation()}>
+        <div className="relative w-full max-w-5xl my-4 sm:my-8" style={{ overflow: 'visible' }} onClick={(e) => e.stopPropagation()}>
           {/* Close button - floating above modal */}
           <button
             ref={closeButtonRef}
@@ -401,9 +408,16 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
           <div
             ref={modalRef}
             onClick={(e) => e.stopPropagation()}
-            className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full sm:max-w-5xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden"
+            className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full max-w-full max-h-[calc(100dvh-2rem)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden overscroll-contain"
+            data-lenis-prevent
+            data-lenis-prevent-wheel
+            data-lenis-prevent-touch
+            role="dialog"
+            aria-modal="true"
             style={{
               opacity: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
               background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
               backdropFilter: 'blur(8px)',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
