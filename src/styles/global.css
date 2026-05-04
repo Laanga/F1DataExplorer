@@ -4,11 +4,31 @@
 
 /* === Estilos base === */
 @layer base {
+  html {
+    color-scheme: dark;
+    background: #0a0a0a;
+    scroll-padding-top: 7rem;
+  }
 
   body {
     @apply bg-f1-dark text-white font-sans antialiased;
     background: radial-gradient(ellipse at center, rgba(225, 6, 0, 0.1) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 20%, rgba(225, 6, 0, 0.05) 0%, transparent 50%);
+    overscroll-behavior-x: none;
+    -webkit-tap-highlight-color: rgba(225, 6, 0, 0.25);
+  }
+
+  a,
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid #e10600;
+    outline-offset: 3px;
   }
 
   h1,
@@ -417,6 +437,19 @@
   }
 }
 
+@keyframes subtle-drop {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+
+  55% {
+    opacity: 0.75;
+    transform: translateY(10px);
+  }
+}
+
 /* === Scrollbar personalizada === */
 ::-webkit-scrollbar {
   width: 8px;
@@ -445,7 +478,22 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-f1-dark text-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

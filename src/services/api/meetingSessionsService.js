@@ -1,7 +1,6 @@
-import axios from 'axios';
 import { API_CONFIG } from '../config/apiConfig.js';
 import { getCachedData, setCachedData } from '../utils/cache.js';
-import { safeRequest, delay } from '../utils/rateLimiter.js';
+import { safeRequest } from '../utils/rateLimiter.js';
 
 /**
  * Servicio para obtener todas las sesiones de un meeting y sus resultados

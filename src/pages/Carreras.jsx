@@ -312,7 +312,7 @@ const Carreras = () => {
     };
   }, [loading, timelineItems]);
 
-  if (loading) return <div className="container mx-auto px-4 py-8"><Loader mensaje="Cargando carreras..." /></div>;
+  if (loading) return <div className="container mx-auto px-4 py-8"><Loader mensaje="Cargando carreras…" /></div>;
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -393,7 +393,7 @@ const Carreras = () => {
           </div>
         </div>
 
-        <div className="mt-20 animate-bounce opacity-50">
+        <div className="mt-20 motion-safe:animate-[subtle-drop_1.8s_cubic-bezier(0.16,1,0.3,1)_infinite] opacity-50">
           <ChevronDown className="w-10 h-10 text-white" />
         </div>
       </div>
@@ -572,7 +572,7 @@ const Carreras = () => {
                     <div className="flex items-end justify-center gap-4 md:gap-6">
                       <div className="h-12 md:h-16 w-[3px] rounded-full bg-white/35 shadow-[0_0_12px_rgba(255,255,255,0.12)]" />
                       <div className="relative">
-                        <div className="h-7 md:h-9 w-44 sm:w-52 md:w-72 rounded-sm border border-white/25 shadow-[0_10px_24px_rgba(0,0,0,0.35)] bg-[length:24px_24px] bg-[image:linear-gradient(45deg,rgba(255,255,255,0.95)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.95)_75%,rgba(255,255,255,0.95)),linear-gradient(45deg,rgba(255,255,255,0.95)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.95)_75%,rgba(255,255,255,0.95))] bg-[position:0_0,12px_12px] bg-black" />
+                        <div className="h-7 md:h-9 w-44 sm:w-52 md:w-72 rounded-sm border border-white/25 shadow-[0_10px_24px_rgba(0,0,0,0.35)] bg-[length:24px_24px] bg-[image:linear-gradient(45deg,rgba(255,255,255,0.95)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.95)_75%,rgba(255,255,255,0.95)),linear-gradient(45deg,rgba(255,255,255,0.95)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.95)_75%,rgba(255,255,255,0.95))] bg-[position:0_0,12px_12px] bg-zinc-950" />
                         <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-f1-red/10" />
                       </div>
                       <div className="h-12 md:h-16 w-[3px] rounded-full bg-white/35 shadow-[0_0_12px_rgba(255,255,255,0.12)]" />

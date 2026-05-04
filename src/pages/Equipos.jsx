@@ -269,7 +269,7 @@ const Equipos = () => {
   };
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-8"><Loader mensaje="Cargando constructores..." /></div>;
+    return <div className="container mx-auto px-4 py-8"><Loader mensaje="Cargando constructores…" /></div>;
   }
   if (error) {
     return <div className="container mx-auto px-4 py-8"><div className="glass rounded-2xl p-8 text-center"><p className="text-red-400">Error: {error}</p></div></div>;

@@ -162,32 +162,3 @@ export const getDriverFlag = (driver) => {
   const countryCode = getCountryCode(driver);
   return countryCode ? getFlagUrl(countryCode) : null;
 };
-
-export const FlagImage = ({ driver, className = '', alt = 'Bandera' }) => {
-  const flagUrl = getDriverFlag(driver);
-  const countryCode = getCountryCode(driver);
-  
-  if (!flagUrl) {
-    return (
-      <div className={`bg-gray-500 rounded-sm flex items-center justify-center ${className}`}>
-        <span className="text-xs text-white">🏁</span>
-      </div>
-    );
-  }
-  
-  return (
-    <img
-      src={flagUrl}
-      alt={alt}
-      className={`rounded-sm object-cover ${className}`}
-      onError={(e) => {
-        e.target.style.display = 'none';
-        const fallback = e.target.nextElementSibling;
-        if (fallback) {
-          fallback.style.display = 'flex';
-        }
-      }}
-      style={{ display: 'block' }}
-    />
-  );
-};

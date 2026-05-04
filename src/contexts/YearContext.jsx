@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { getCurrentF1Season } from '../services/config/apiConfig';
 
 const YearContext = createContext();

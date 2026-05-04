@@ -19,6 +19,10 @@ import Loader from '../components/ui/Loader';
 gsap.registerPlugin(ScrollTrigger);
 
 const CONSTRUCTORS_DISPLAY_LIMIT = 11;
+const COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
+  day: '2-digit',
+  month: 'short'
+});
 
 const isLocalDriverPhoto = (path) => typeof path === 'string' && path.startsWith('/drivers/');
 
@@ -31,10 +35,7 @@ const formatCompactDate = (value) => {
   if (!value) return 'Fecha por confirmar';
   const parsedDate = new Date(value);
   if (Number.isNaN(parsedDate.getTime())) return 'Fecha por confirmar';
-  return new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: 'short'
-  }).format(parsedDate);
+  return COMPACT_DATE_FORMATTER.format(parsedDate);
 };
 
 const formatMetric = (value) => Number(value || 0).toLocaleString('es-ES');
@@ -216,7 +217,9 @@ const Estadisticas = () => {
     return sorted.map((team, index) => {
       const teamData = constructorsByName.get(String(team.name).toLowerCase());
       const topTeamDriver = Array.isArray(teamData?.drivers)
-        ? [...teamData.drivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0))[0]
+        ? teamData.drivers.reduce((bestDriver, driver) => (
+          Number(driver?.points || 0) > Number(bestDriver?.points || 0) ? driver : bestDriver
+        ), null)
         : null;
 
       return {
@@ -390,7 +393,7 @@ const Estadisticas = () => {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Loader mensaje="Montando tablero de estadísticas..." />
+        <Loader mensaje="Montando tablero de estadísticas…" />
       </div>
     );
   }
@@ -423,7 +426,7 @@ const Estadisticas = () => {
             </span>
           </div>
           <h1 className="text-5xl md:text-7xl font-racing tracking-tight text-white uppercase leading-none">
-            Estadisticas
+            Estadísticas
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white/80 to-white/30">
               Temporada {statsYear}
             </span>

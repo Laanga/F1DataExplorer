@@ -25,7 +25,7 @@ const AppContent = () => {
       <main className={isHomePage ? '' : 'min-h-screen pt-28 pb-10'}>
         <Suspense fallback={
           <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
-            <Loader mensaje="Cargando..." />
+            <Loader mensaje="Cargando…" />
           </div>
         }>
           <Routes>
@@ -43,6 +43,10 @@ const AppContent = () => {
 
 const App = () => {
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return undefined;
+    }
+
     const lenis = new Lenis({
       autoRaf: true,
       duration: 1.2,

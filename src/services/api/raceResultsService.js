@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { API_CONFIG } from '../config/apiConfig.js';
 import { getCachedData, setCachedData } from '../utils/cache.js';
 import { safeRequest } from '../utils/rateLimiter.js';

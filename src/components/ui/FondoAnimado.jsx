@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 
 /**
@@ -10,14 +10,14 @@ const FondoAnimado = () => {
   const particlesRef = useRef([]);
 
   // Generamos partículas decorativas
-  const particulas = Array.from({ length: 15 }, (_, i) => ({
+  const particulas = useMemo(() => Array.from({ length: 15 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
     y: Math.random() * 100,
     size: Math.random() * 100 + 50,
     duration: Math.random() * 10 + 10,
     delay: Math.random() * 5,
-  }));
+  })), []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -59,7 +59,7 @@ const FondoAnimado = () => {
     });
 
     return () => ctx.revert();
-  }, []);
+  }, [particulas]);
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">

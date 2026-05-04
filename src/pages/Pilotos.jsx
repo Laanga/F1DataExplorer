@@ -27,6 +27,7 @@ const Pilotos = () => {
   const modalImageRef = useRef(null);
   const modalStatsRef = useRef([]);
   const modalTeamRef = useRef(null);
+  const modalCloseButtonRef = useRef(null);
 
   // Usar el hook personalizado para manejar las llamadas con cleanup
   const { data, loading, error } = useAsyncDataParallel([
@@ -246,6 +247,31 @@ const Pilotos = () => {
     }, '-=0.1');
   }, []);
 
+  useEffect(() => {
+    if (!shouldRenderModal || !modalAbierto) return undefined;
+
+    const previousActiveElement = document.activeElement;
+    const focusTimer = window.setTimeout(() => {
+      modalCloseButtonRef.current?.focus();
+    }, 0);
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        handleCerrarModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleEscape);
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, [handleCerrarModal, modalAbierto, shouldRenderModal]);
+
   // Hover handlers for modal elements
   const handleStatHover = useCallback((e, isHovering, teamColor) => {
     const rgb = teamColor ? hexToRgb(teamColor) : { r: 239, g: 68, b: 68 };
@@ -352,7 +378,7 @@ const Pilotos = () => {
     ]
     : [];
 
-  const loadingSeasonValue = seasonStatsLoading && !seasonStats ? '...' : null;
+  const loadingSeasonValue = seasonStatsLoading && !seasonStats ? '…' : null;
 
   const performanceStats = pilotoSeleccionado
     ? [
@@ -422,7 +448,7 @@ const Pilotos = () => {
   if (loading) {
     return (
       <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 overflow-x-hidden">
-        <Loader mensaje="Cargando pilotos..." />
+        <Loader mensaje="Cargando pilotos…" />
       </div>
     );
   }
@@ -485,10 +511,12 @@ const Pilotos = () => {
       {/* Modal */}
       {shouldRenderModal && pilotoSeleccionado && (
         <>
-          <div
+          <button
+            type="button"
             ref={modalBackdropRef}
             onClick={handleCerrarModal}
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
+            aria-label="Cerrar ficha de piloto"
             style={{ opacity: 0 }}
           />
 
@@ -558,6 +586,7 @@ const Pilotos = () => {
                 </div>
 
                 <button
+                  ref={modalCloseButtonRef}
                   onClick={handleCerrarModal}
                   onMouseEnter={(e) => handleCloseHover(e, true)}
                   onMouseLeave={(e) => handleCloseHover(e, false)}

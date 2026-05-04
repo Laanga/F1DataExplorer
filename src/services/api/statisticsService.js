@@ -1,4 +1,4 @@
-import { getCurrentYear, getTotalRacesForYear } from '../config/apiConfig.js';
+import { getTotalRacesForYear } from '../config/apiConfig.js';
 import { getCachedData, setCachedData } from '../utils/cache.js';
 import { getDrivers } from './driversService.js';
 import { getSessions, getMeetings } from './sessionsService.js';
@@ -326,7 +326,7 @@ export const getPointsEvolution = async (topCount = 3) => {
     }
 
     // Configurar las líneas para el gráfico
-     const lineConfig = topDrivers.map((driver, index) => {
+     const lineConfig = topDrivers.map((driver) => {
        const driverKey = `driver_${driver.driver.driverId}`;
        return {
          dataKey: driverKey,

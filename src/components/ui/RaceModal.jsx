@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, MapPin, Calendar, Clock, Trophy, Flag, Users, Timer, Medal, Activity, Zap, Target, Info } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, MapPin, Calendar, Users, Info } from 'lucide-react';
 import gsap from 'gsap';
-import { formatearFecha, formatearFechaHora, getTiempoRestante, isCarreraCompletada } from '../../utils/dateUtils';
+import { formatearFecha, isCarreraCompletada } from '../../utils/dateUtils';
 import { getCompleteMeetingResults, categorizeSessionsByType } from '../../services/openf1Service';
-import { getDriverPhoto } from '../../utils/formatUtils';
-import { getTeamColor } from '../../utils/chartColors';
+import RaceSessionResults, { getSessionIcon, getSessionName } from './RaceSessionResults';
 
 const LOADING_DOT_IDS = ['dot-a', 'dot-b', 'dot-c'];
 const createEmptySessionGroups = () => ({
@@ -30,13 +29,13 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
   const closeButtonRef = useRef(null);
   const contentRef = useRef(null);
   const loadingDotsRef = useRef([]);
-  const resultItemsRef = useRef([]);
 
   const isCompleted = carrera ? isCarreraCompletada(carrera.date_end) : false;
   const circuitImageUrl = meeting?.circuit_image || '';
   const circuitDisplayName = meeting?.circuit_short_name || meeting?.location || meeting?.meeting_name || 'Circuito';
+  const eventYear = carrera?.date_start ? new Date(carrera.date_start).getFullYear() : null;
 
-  const loadMeetingData = async () => {
+  const loadMeetingData = useCallback(async () => {
     if (!meeting?.meeting_key) return;
 
     setLoadingMeeting(true);
@@ -65,7 +64,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     } finally {
       setLoadingMeeting(false);
     }
-  };
+  }, [carrera?.session_name, carrera?.session_type, meeting?.meeting_key]);
 
   // Controlar renderizado
   useEffect(() => {
@@ -79,7 +78,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     if (isOpen && meeting?.meeting_key) {
       loadMeetingData();
     }
-  }, [isOpen, meeting?.meeting_key]);
+  }, [isOpen, meeting?.meeting_key, loadMeetingData]);
 
   useEffect(() => {
     setCircuitImageError(false);
@@ -180,6 +179,31 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     }, '-=0.1');
   }, [onClose]);
 
+  useEffect(() => {
+    if (!isOpen || !shouldRender) return undefined;
+
+    const previousActiveElement = document.activeElement;
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 0);
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleEscape);
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, [handleClose, isOpen, shouldRender]);
+
   // Hover handlers
   const handleCloseHover = useCallback((e, isHovering) => {
     gsap.to(e.currentTarget, {
@@ -198,197 +222,30 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
     });
   }, []);
 
-  const getSessionIcon = (type) => {
-    switch (type) {
-      case 'practice': return <Activity className="w-4 h-4" />;
-      case 'qualifying': return <Target className="w-4 h-4" />;
-      case 'sprint': return <Zap className="w-4 h-4" />;
-      case 'race': return <Trophy className="w-4 h-4" />;
-      default: return <Flag className="w-4 h-4" />;
-    }
-  };
-
-  const getSessionName = (type) => {
-    switch (type) {
-      case 'practice': return 'Entrenamientos Libres';
-      case 'qualifying': return 'Clasificación';
-      case 'sprint': return 'Sprint';
-      case 'race': return 'Carrera';
-      default: return 'Sesión';
-    }
-  };
-
-  const renderSessionResults = (sessionType) => {
-    const sessions = categorizedSessions[sessionType] || [];
-
-    if (sessions.length === 0) {
-      return (
-        <div className="text-center py-8">
-          <Flag className="w-12 h-12 text-white/40 mx-auto mb-3" />
-          <p className="text-white/60">
-            No hay sesiones de {getSessionName(sessionType).toLowerCase()} disponibles
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        {sessions.map((session, sessionIndex) => {
-          const sessionResults = meetingData?.sessions[session.session_key]?.results || [];
-          const sessionInfo = meetingData?.sessions[session.session_key]?.session_info || session;
-          const typeTextForSession = String((sessionInfo.session_name || sessionInfo.session_type || sessionType || '')).toLowerCase();
-          const showTimeColumn = /race|sprint/.test(typeTextForSession);
-
-          return (
-            <div key={session.session_key} className="glass rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-white flex items-center space-x-2">
-                  {getSessionIcon(sessionType)}
-                  <span>{sessionInfo.session_name || getSessionName(sessionType)}</span>
-                </h4>
-                <span className="text-white/60 text-sm">
-                  {formatearFechaHora(sessionInfo.date_start)}
-                </span>
-              </div>
-
-              {sessionResults.length > 0 ? (
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                  <div className="sticky top-0 z-10 grid grid-cols-12 gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm border-b border-white/10">
-                    <div className="col-span-2 text-white/80 text-sm font-medium">Pos / Nº</div>
-                    <div className="col-span-4 text-white/80 text-sm font-medium">Piloto</div>
-                    <div className={`${showTimeColumn ? 'col-span-4' : 'col-span-6'} text-white/80 text-sm font-medium`}>Equipo</div>
-                    {showTimeColumn && (
-                      <div className="col-span-2 text-white/80 text-sm font-medium text-right">Tiempo / Gap</div>
-                    )}
-                  </div>
-
-                  {sessionResults.map((result, index) => {
-                    const pos = result.position || index + 1;
-                    const teamName = result.driver_info?.team_name || 'Equipo no disponible';
-                    const teamColor = getTeamColor(teamName);
-                    const typeText = String((sessionInfo.session_name || sessionInfo.session_type || sessionType || '')).toLowerCase();
-                    const isRaceLike = /race|sprint/.test(typeText);
-                    const isPractice = /(practice|fp1|fp2|fp3|free practice)/.test(typeText);
-                    const gapOrInterval = result.gap_to_leader || result.interval;
-                    const lapOrTime = result.time || result.best_lap_time || result.duration;
-                    const statusCandidates = [result.status, result.finish_status, result.classification, result.status_text, result.result];
-                    const statusText = statusCandidates.find(Boolean);
-                    const s = statusText ? String(statusText).toUpperCase() : '';
-                    const posText = String(result.position_text || '').toUpperCase();
-
-                    const timeOrGap = (() => {
-                      if (s.includes('DNF') || s.includes('RETIRED') || s === 'R' || posText.includes('DNF') || posText === 'R' || posText.includes('RET')) return 'DNF';
-                      if (s.includes('DNS') || posText.includes('DNS')) return 'DNS · No salió';
-                      if (s.includes('DSQ') || s.includes('DQ') || s.includes('DISQUALIFIED') || posText.includes('DSQ')) return 'DSQ · Descalificado';
-                      if (s.includes('NC') || s.includes('NOT CLASSIFIED') || posText.includes('NC')) return 'NC · No clasificado';
-                      if (isPractice) return '—';
-                      if (isRaceLike) {
-                        if (pos === 1) return '-';
-                        if (gapOrInterval) return gapOrInterval;
-                        if (lapOrTime) return lapOrTime;
-                        if (posText.includes('DNF') || posText === 'R' || posText.includes('RET')) return 'DNF';
-                        return 'DNF';
-                      }
-                      if (lapOrTime) return lapOrTime;
-                      return '—';
-                    })();
-
-                    const driverName = result.driver_info?.full_name || result.driver_info?.broadcast_name || `Piloto #${result.driver_number}`;
-
-                    return (
-                      <div
-                        key={result.driver_number || index}
-                        ref={(el) => (resultItemsRef.current[index] = el)}
-                        className="grid grid-cols-12 gap-3 items-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                        style={{ borderLeft: `4px solid ${teamColor}` }}
-                      >
-                        <div className="col-span-2 flex items-center space-x-3 px-4 py-3">
-                          <div
-                            className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-extrabold shadow-lg border ${pos === 1
-                              ? 'bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 text-black border-yellow-200/50 shadow-yellow-400/30'
-                              : pos === 2
-                                ? 'bg-gradient-to-br from-gray-300 via-gray-400 to-slate-500 text-black border-gray-200/50 shadow-gray-400/30'
-                                : pos === 3
-                                  ? 'bg-gradient-to-br from-amber-600 via-orange-500 to-amber-700 text-white border-amber-300/50 shadow-amber-500/30'
-                                  : 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white border-slate-400/30 shadow-slate-600/20'
-                              }`}
-                          >
-                            {pos}
-                          </div>
-                          <span className="text-white/80 text-sm">#{result.driver_number || '?'}</span>
-                        </div>
-
-                        <div className="col-span-4 flex items-center space-x-3 px-2 py-2">
-                          <div className="relative">
-                            <img
-                              src={getDriverPhoto(result.driver_info) || '/drivers/default.png'}
-                              alt={driverName}
-                              className="w-9 h-9 rounded-full object-cover border-2 border-white/20"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextElementSibling.style.display = 'flex';
-                              }}
-                            />
-                            <div
-                              className="w-9 h-9 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center text-white font-bold text-xs border-2 border-white/20"
-                              style={{ display: 'none' }}
-                            >
-                              {result.driver_number || '?'}
-                            </div>
-                          </div>
-                          <p className="text-white font-semibold text-base truncate">{driverName}</p>
-                        </div>
-
-                        <div className={`${showTimeColumn ? 'col-span-4' : 'col-span-6'} px-2 py-2`}>
-                          <p className="text-white/80 text-base truncate">{teamName}</p>
-                        </div>
-
-                        {showTimeColumn && (
-                          <div className="col-span-2 px-4 py-3 text-right">
-                            <p className="text-white text-base font-semibold">{timeOrGap}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                </div>
-              ) : loadingMeeting ? (
-                <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400 mx-auto" />
-                  <p className="text-white/60 mt-2 text-sm">Cargando resultados...</p>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <Flag className="w-6 h-6 text-white/40 mx-auto mb-2" />
-                  <p className="text-white/60 text-sm">
-                    No hay resultados disponibles para esta sesión
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   if (!carrera || !shouldRender) return null;
 
   return (
     <>
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         ref={backdropRef}
         onClick={handleClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-6"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 cursor-default"
         data-lenis-prevent
         data-lenis-prevent-wheel
         data-lenis-prevent-touch
+        aria-label="Cerrar detalle de carrera"
         style={{ opacity: 0 }}
+      />
+
+      <div
+        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-6 pointer-events-none"
+        data-lenis-prevent
+        data-lenis-prevent-wheel
+        data-lenis-prevent-touch
       >
-        <div className="relative w-full max-w-5xl my-4 sm:my-8" style={{ overflow: 'visible' }} onClick={(e) => e.stopPropagation()}>
+        <div className="relative w-full max-w-5xl my-4 sm:my-8 pointer-events-auto" style={{ overflow: 'visible' }}>
           {/* Close button - floating above modal */}
           <button
             ref={closeButtonRef}
@@ -396,6 +253,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
             onMouseEnter={(e) => handleCloseHover(e, true)}
             onMouseLeave={(e) => handleCloseHover(e, false)}
             className="absolute -top-4 -right-4 z-[60] p-2.5 rounded-full border border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl"
+            aria-label="Cerrar detalle de carrera"
             style={{
               background: 'linear-gradient(135deg, rgba(225,6,0,0.9) 0%, rgba(185,28,28,0.9) 100%)',
               backdropFilter: 'blur(10px)',
@@ -407,7 +265,6 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
 
           <div
             ref={modalRef}
-            onClick={(e) => e.stopPropagation()}
             className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full max-w-full max-h-[calc(100dvh-2rem)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden overscroll-contain"
             data-lenis-prevent
             data-lenis-prevent-wheel
@@ -464,7 +321,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
                   <div className="w-12 h-12 border-4 border-f1-red/30 border-t-f1-red rounded-full animate-spin" />
                   <div className="text-center">
-                    <p className="text-white font-medium mb-1">Cargando datos de la carrera...</p>
+                    <p className="text-white font-medium mb-1">Cargando datos de la carrera…</p>
                     <p className="text-white/60 text-sm">Obteniendo información detallada del evento</p>
                   </div>
                   <div className="flex space-x-1">
@@ -547,7 +404,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-white/80 text-sm">
                             <div><span className="text-white/90">País:</span> {meeting.country_name || 'No disponible'}</div>
                             <div><span className="text-white/90">Circuito:</span> {meeting.circuit_short_name || meeting.location || 'No disponible'}</div>
-                            <div><span className="text-white/90">Año:</span> {meeting.year || new Date(carrera.date_start).getFullYear()}</div>
+                            <div><span className="text-white/90">Año:</span> {meeting.year || eventYear || 'No disponible'}</div>
                             {meeting.gmt_offset && <div><span className="text-white/90">Zona Horaria:</span> GMT{meeting.gmt_offset}</div>}
                           </div>
                         </div>
@@ -592,7 +449,12 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
 
                   {/* Session Results */}
                   <div className="min-h-[300px]">
-                    {renderSessionResults(activeTab)}
+                    <RaceSessionResults
+                      sessionType={activeTab}
+                      categorizedSessions={categorizedSessions}
+                      meetingData={meetingData}
+                      loadingMeeting={loadingMeeting}
+                    />
                   </div>
                 </>
               )}

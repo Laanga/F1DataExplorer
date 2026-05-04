@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Flag, Trophy, TrendingUp, Users, Shield, Github } from 'lucide-react';
 import { getSeasonProgress, getDriverStandings, getDrivers } from '../services/openf1Service';
 import { useYear } from '../contexts/YearContext';
@@ -48,7 +48,6 @@ const mapStandingsWithPhotos = (standings = [], drivers = []) => (
 );
 
 const Inicio = () => {
-  const navigate = useNavigate();
   const { selectedYear } = useYear();
   const homeDataYear = selectedYear;
   const [seasonProgress, setSeasonProgress] = useState(null);
@@ -167,9 +166,14 @@ const Inicio = () => {
   }, [loading, topDrivers]);
 
   const splitText = (text) => {
-    return text.split('').map((char, index) => (
-      <span key={index} className="char inline-block">{char === ' ' ? '\u00A0' : char}</span>
-    ));
+    const occurrenceCount = {};
+
+    return text.split('').map((char) => {
+      occurrenceCount[char] = (occurrenceCount[char] || 0) + 1;
+      return (
+        <span key={`${char}-${occurrenceCount[char]}`} className="char inline-block">{char === ' ' ? '\u00A0' : char}</span>
+      );
+    });
   };
 
   const handleHoverMove = (e) => {
@@ -434,19 +438,20 @@ const Inicio = () => {
               { title: "EQUIPOS", icon: Shield, desc: "Análisis de constructores", path: "/equipos", color: "from-green-500/20" },
               { title: "MÉTRICAS", icon: TrendingUp, desc: "Estadísticas avanzadas", path: "/estadisticas", color: "from-amber-500/20" }
             ].map((item, idx) => (
-              <div
-                key={idx}
+              <Link
+                key={item.path}
+                to={item.path}
                 ref={el => gridCardsRef.current[idx] = el}
                 onMouseMove={handleHoverMove} onMouseLeave={handleHoverLeave}
-                onClick={() => navigate(item.path)}
                 className="glass rounded-3xl p-8 aspect-square relative overflow-hidden group flex flex-col items-center justify-center text-center cursor-pointer border border-white/5 shadow-2xl"
                 style={{ perspective: '1000px' }}
+                aria-label={`Abrir ${item.title.toLowerCase()}`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-b ${item.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
                 <item.icon className="w-16 h-16 text-white mb-6 transform group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-500 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
                 <h3 className="text-3xl font-racing text-white mb-2 relative z-10 group-hover:text-f1-red transition-colors">{item.title}</h3>
                 <p className="text-gray-400 font-sans text-sm tracking-wide relative z-10">{item.desc}</p>
-              </div>
+              </Link>
             ))}
 
           </div>
@@ -478,7 +483,7 @@ const Inicio = () => {
       <footer className="mt-auto px-4 py-16 relative z-10 w-full overflow-hidden flex justify-center text-center">
         <div className="absolute inset-0 bg-gradient-to-t from-f1-red/10 to-transparent pointer-events-none" />
         <a
-          href="https://github.com"
+          href="https://github.com/Laanga/F1DataExplorer"
           target="_blank"
           rel="noopener noreferrer"
           className="group relative inline-flex items-center gap-4 px-10 py-5 rounded-full glass border border-white/10 hover:border-f1-red transition-all duration-500 overflow-hidden z-10 shadow-2xl"

@@ -89,11 +89,11 @@ const Navbar = () => {
   return (
     <nav
       ref={navRef}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex justify-center w-full pointer-events-none ${isScrolled ? 'pt-2 sm:pt-4' : 'pt-4 sm:pt-6'}`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 [transition-timing-function:cubic-bezier(0.25,1,0.5,1)] flex justify-center w-full pointer-events-none ${isScrolled ? 'pt-2 sm:pt-4' : 'pt-4 sm:pt-6'}`}
     >
       <div
         ref={containerRef}
-        className={`pointer-events-auto flex items-center justify-between px-6 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] glass rounded-full ring-1 ring-white/10 ${isScrolled ? 'w-[90%] sm:w-[80vw] lg:w-[1000px] shadow-[0_8px_32px_rgba(225,6,0,0.15)] bg-f1-dark/60' : 'w-[95%] sm:w-[90vw] lg:w-[1100px] shadow-[0_16px_40px_rgba(0,0,0,0.4)] bg-f1-dark/40'}`}
+        className={`pointer-events-auto flex items-center justify-between px-6 py-3 transition-all duration-500 [transition-timing-function:cubic-bezier(0.25,1,0.5,1)] glass rounded-full ring-1 ring-white/10 ${isScrolled ? 'w-[90%] sm:w-[80vw] lg:w-[1000px] shadow-[0_8px_32px_rgba(225,6,0,0.15)] bg-f1-dark/60' : 'w-[95%] sm:w-[90vw] lg:w-[1100px] shadow-[0_16px_40px_rgba(0,0,0,0.4)] bg-f1-dark/40'}`}
       >
         {/* Logo */}
         <Link to="/" className="relative flex items-center space-x-2 group">

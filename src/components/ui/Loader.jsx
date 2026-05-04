@@ -5,7 +5,7 @@ import gsap from 'gsap';
  * Componente de carga con animación estilo F1
  * Muestra un indicador giratorio con efecto glass
  */
-const Loader = ({ mensaje = 'Cargando datos...' }) => {
+const Loader = ({ mensaje = 'Cargando datos…' }) => {
   const outerRingRef = useRef(null);
   const innerRingRef = useRef(null);
   const centerDotRef = useRef(null);

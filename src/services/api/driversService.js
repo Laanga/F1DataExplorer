@@ -197,8 +197,9 @@ const fetchAllDriversFromErgast = async (options = {}) => {
   const limit = 100;
   let offset = 0;
   const allDrivers = [];
+  let hasMoreDrivers = true;
 
-  while (true) {
+  while (hasMoreDrivers) {
     const response = await axios.get(`${API_CONFIG.JOLPICA.BASE_URL}/drivers.json`, {
       signal,
       params: { limit, offset }
@@ -211,10 +212,10 @@ const fetchAllDriversFromErgast = async (options = {}) => {
     allDrivers.push(...drivers);
 
     if (drivers.length === 0 || allDrivers.length >= total) {
-      break;
+      hasMoreDrivers = false;
+    } else {
+      offset += drivers.length;
     }
-
-    offset += drivers.length;
   }
 
   setCachedData(cacheKey, allDrivers);
@@ -347,8 +348,9 @@ const fetchDriverRacesFromErgast = async ({ signal, driverId, endpoint }) => {
   const limit = 100;
   let offset = 0;
   const allRaces = [];
+  let hasMoreRaces = true;
 
-  while (true) {
+  while (hasMoreRaces) {
     const response = await axios.get(
       `${API_CONFIG.JOLPICA.BASE_URL}/drivers/${driverId}/${endpoint}.json`,
       {
@@ -364,10 +366,10 @@ const fetchDriverRacesFromErgast = async ({ signal, driverId, endpoint }) => {
     allRaces.push(...races);
 
     if (races.length === 0 || allRaces.length >= total) {
-      break;
+      hasMoreRaces = false;
+    } else {
+      offset += races.length;
     }
-
-    offset += races.length;
   }
 
   return allRaces;
