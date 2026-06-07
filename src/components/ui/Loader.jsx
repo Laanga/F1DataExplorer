@@ -73,21 +73,15 @@ const Loader = ({ mensaje = 'Cargando datos…' }) => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
-      {/* Spinner animado */}
-      <div className="relative">
-        {/* Círculo exterior */}
+      <div className="relative border border-f1-copper/20 bg-black/25 p-8" style={{ clipPath: 'polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))' }}>
         <div
           ref={outerRingRef}
-          className="w-20 h-20 rounded-full border-4 border-white/10 border-t-f1-red"
+          className="w-20 h-20 rounded-full border-4 border-white/10 border-t-f1-copper"
         />
-        
-        {/* Círculo interior */}
         <div
           ref={innerRingRef}
           className="absolute inset-2 w-16 h-16 rounded-full border-4 border-white/5 border-b-f1-red"
         />
-
-        {/* Punto central */}
         <div
           ref={centerDotRef}
           className="absolute inset-0 m-auto w-3 h-3 bg-f1-red rounded-full shadow-lg shadow-f1-red/50"
@@ -95,17 +89,15 @@ const Loader = ({ mensaje = 'Cargando datos…' }) => {
         />
       </div>
 
-      {/* Mensaje */}
       <p
         ref={messageRef}
-        className="text-white/70 text-sm font-medium"
+        className="data-label text-white/70"
         style={{ opacity: 0.5 }}
       >
         {mensaje}
       </p>
 
-      {/* Barra de progreso animada */}
-      <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+      <div className="w-56 h-1 bg-white/10 overflow-hidden border border-white/10">
         <div
           ref={progressRef}
           className="h-full w-1/3 bg-gradient-to-r from-transparent via-f1-red to-transparent"

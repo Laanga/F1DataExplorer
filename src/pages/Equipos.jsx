@@ -1,16 +1,13 @@
 import { useMemo, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { getChampionshipStandings, getDrivers } from '../services/openf1Service';
 import Loader from '../components/ui/Loader';
-import { Shield, Users } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useYear } from '../contexts/YearContext';
 import { getTeamLogo, getTeamColor, getDriverPhoto } from '../utils/formatUtils';
 import { getDriverNationality } from '../utils/nationalityUtils';
 import { getDriverFlag } from '../utils/flagUtils.jsx';
 import { useAsyncDataParallel } from '../hooks/useAsyncData';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const normalizeText = (value) => (
   String(value || '')
@@ -190,54 +187,15 @@ const Equipos = () => {
 
   const equipos = useMemo(() => standings?.constructors || [], [standings]);
 
-  // Massive Scroll Animations 2026
   useEffect(() => {
-    if (loading || equipos.length === 0) return;
+    if (loading) return;
 
     const ctx = gsap.context(() => {
-      // Header
-      gsap.fromTo(headerRef.current,
-        { opacity: 0, y: 100 },
-        { opacity: 1, y: 0, duration: 1, ease: 'power4.out' }
-      );
-
-      // List Stagger Parallax
-      teamCardsRef.current.forEach((card) => {
-        if (!card) return;
-
-        // Initial reveal
-        gsap.fromTo(card,
-          { opacity: 0, y: 150, rotateX: 10 },
-          {
-            opacity: 1, y: 0, rotateX: 0,
-            duration: 1.2,
-            ease: 'expo.out',
-            scrollTrigger: {
-              trigger: card,
-              start: 'top 90%',
-            }
-          }
-        );
-
-        // Parallax logo inside card
-        const logoImg = card.querySelector('.parallax-logo');
-        if (logoImg) {
-          gsap.to(logoImg, {
-            yPercent: 30,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: card,
-              start: 'top bottom',
-              end: 'bottom top',
-              scrub: true
-            }
-          });
-        }
-      });
+      gsap.from(headerRef.current, { y: 18, duration: 0.45, ease: 'power2.out' });
     });
 
     return () => ctx.revert();
-  }, [loading, equipos.length]);
+  }, [loading]);
 
   const handleMouseMove = (e, index) => {
     const card = teamCardsRef.current[index];
@@ -247,7 +205,7 @@ const Equipos = () => {
     const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
 
     gsap.to(card, {
-      rotateX: -y * 3, // subtle tilt because card is huge
+      rotateX: -y * 3,
       rotateY: x * 3,
       scale: 1.01,
       duration: 0.4,
@@ -276,172 +234,148 @@ const Equipos = () => {
   }
 
   return (
-    <div className="w-full min-h-screen bg-f1-dark relative overflow-hidden pb-20">
-      {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_100%)]" />
+    <div className="control-page">
+      <div className="race-shell control-shell">
+        <aside className="race-rail flex min-h-0 flex-col overflow-y-auto" data-lenis-prevent>
+          <div className="hud-kicker mb-5">
+            <Shield className="h-3.5 w-3.5" />
+            Constructores
+          </div>
+          <h1 className="font-racing text-[2rem] italic leading-none text-white">Equipos</h1>
+          <p className="mt-3 text-sm text-white/58">
+            Clasificación de constructores, puntos y alineaciones de pilotos para comparar el campeonato de un vistazo.
+          </p>
 
-      {/* Header Epic */}
-      <div ref={headerRef} className="max-w-7xl mx-auto px-4 sm:px-8 pt-12 pb-20 relative z-10 text-center flex flex-col items-center">
-        <Shield className="w-20 h-20 text-f1-red mb-6 drop-shadow-[0_0_30px_rgba(225,6,0,0.5)]" />
-        <h1 className="text-6xl md:text-9xl font-racing text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-300 to-gray-600 mb-4 tracking-tighter filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]">
-          CONSTRUCTORES
-        </h1>
-        <div className="glass px-6 py-2 rounded-full border border-white/10 mt-2">
-          <span className="text-white/80 font-sans tracking-widest uppercase font-bold text-sm">
-            Campeonato del Mundo {selectedYear}
-          </span>
-        </div>
-      </div>
+          <div className="mt-6 min-h-0 space-y-2 overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+            {equipos
+              .slice()
+              .sort((a, b) => Number(b.puntos || 0) - Number(a.puntos || 0))
+              .map((equipo, index) => {
+                const teamColor = getTeamColor(equipo.nombre);
+                return (
+                  <div key={`rail-${equipo.nombre}`} className="timing-row grid-cols-[2.5rem_1fr_auto]" style={{ borderLeft: `4px solid ${teamColor}` }}>
+                    <span className="data-value text-f1-copper">P{index + 1}</span>
+                    <span className="truncate text-sm font-semibold text-white/80">{equipo.nombre}</span>
+                    <span className="data-value">{equipo.puntos}</span>
+                  </div>
+                );
+              })}
+          </div>
+        </aside>
 
-      {/* Constructor List (Massive Cards) */}
-      <div ref={listRef} className="max-w-6xl mx-auto px-4 sm:px-8 space-y-16 lg:space-y-32 relative z-10">
-        {equipos.map((equipo, index) => {
-          const teamColor = getTeamColor(equipo.nombre);
-          const teamRgb = hexToRgbString(teamColor);
-
-          return (
-            <div
-              key={equipo.nombre}
-              ref={(el) => (teamCardsRef.current[index] = el)}
-              onMouseMove={(e) => handleMouseMove(e, index)}
-              onMouseLeave={() => handleMouseLeave(index)}
-              className="relative w-full rounded-[3rem] p-[2px] overflow-hidden group mb-10"
-              style={{
-                background: `linear-gradient(145deg, ${teamColor} 0%, rgba(0,0,0,0) 50%, rgba(255,255,255,0.1) 100%)`,
-                boxShadow: `0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2)`
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-f1-dark rounded-[3rem] z-0 m-[1px]"
-                style={{
-                  background: `linear-gradient(160deg, rgba(8,12,24,0.95) 0%, rgba(0,0,0,1) 100%)`
-                }}
-              />
-
-              {/* Huge Background Team Logo */}
-              <div className="absolute inset-y-0 right-0 w-1/2 pointer-events-none overflow-hidden rounded-r-[3rem] opacity-20 group-hover:opacity-40 transition-opacity duration-700">
-                <img
-                  src={getTeamLogo(equipo.nombre)}
-                  alt=""
-                  className="parallax-logo absolute top-[-20%] -right-20 w-full h-[140%] object-contain filter grayscale invert opacity-50 blend-overlay"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
+        <main className="control-main">
+          <header ref={headerRef} className="race-module shrink-0">
+            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="hud-kicker mb-4">Campeonato {selectedYear}</div>
+                <h2 className="font-racing text-4xl italic leading-none text-white sm:text-6xl">Equipos</h2>
+                <p className="mt-3 max-w-3xl text-sm text-white/60">
+                  Puntos, color de equipo y pareja de pilotos reunidos en módulos densos de campeonato.
+                </p>
               </div>
-
-              {/* Card Content Row */}
-              <div className="relative z-10 flex flex-col lg:flex-row min-h-[400px]">
-
-                {/* Left Side: Team Branding & Points */}
-                <div className="flex-1 p-8 lg:p-16 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/10">
-                  <div className="flex items-center gap-6 mb-8">
-                    <div
-                      className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl"
-                      style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))` }}
-                    >
-                      <img
-                        src={getTeamLogo(equipo.nombre)}
-                        alt=""
-                        className="w-16 h-16 object-contain filter drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    </div>
-                    <h2 className="text-4xl sm:text-6xl font-racing text-white leading-none uppercase tracking-wide">
-                      {equipo.nombre}
-                    </h2>
-                  </div>
-
-                  <div className="mt-auto">
-                    <p className="text-white/40 uppercase tracking-widest text-sm font-bold mb-2">Puntos de Campeonato</p>
-                    <div className="flex items-end gap-3">
-                      <span
-                        className="text-7xl sm:text-8xl font-black font-sans leading-none"
-                        style={{ color: teamColor, textShadow: `0 0 40px rgba(${teamRgb},0.4)` }}
-                      >
-                        {equipo.puntos}
-                      </span>
-                      <span className="text-2xl text-white/50 font-bold mb-2">PTS</span>
-                    </div>
-                  </div>
-
-                  {/* Neon accent line */}
-                  <div
-                    className="w-full h-1 mt-10 rounded-full opacity-50"
-                    style={{ background: teamColor, boxShadow: `0 0 20px ${teamColor}` }}
-                  />
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-3">
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">Equipos</p>
+                  <p className="data-value mt-1">{equipos.length}</p>
                 </div>
-
-                {/* Right Side: Drivers */}
-                <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center gap-6">
-                  <h3 className="text-white/50 font-sans uppercase tracking-[0.2em] text-sm font-bold pl-2 flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Alineación de Pilotos
-                  </h3>
-
-                  {equipo.pilotos
-                    .sort((a, b) => b.puntos - a.puntos)
-                    .map((piloto, idx) => (
-                      (() => {
-                        const driverPhoto = getDriverPhoto(piloto);
-                        const flagUrl = getDriverFlag(piloto);
-
-                        return (
-                          <div
-                            key={piloto.driver_number || piloto.full_name || `${equipo.nombre}-${idx}`}
-                            className="glass rounded-3xl p-4 flex items-center gap-6 group/driver hover:bg-white/5 transition-colors cursor-pointer border border-transparent hover:border-white/10"
-                          >
-                            {/* Photo */}
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black/50 relative shadow-inner flex-shrink-0">
-                              {driverPhoto ? (
-                                <img
-                                  src={driverPhoto}
-                                  alt=""
-                                  className="w-full h-full object-cover object-top filter contrast-125 saturate-110 group-hover/driver:scale-110 transition-transform duration-500"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center font-racing text-3xl text-white/30">{piloto.driver_number}</div>
-                              )}
-                              <div className="absolute inset-0 border-[3px] rounded-2xl pointer-events-none" style={{ borderColor: `${teamColor}40` }} />
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-1">
-                                <span className="text-2xl font-racing text-white">{piloto.full_name}</span>
-                                <span className="text-sm font-mono bg-white/10 px-2 py-0.5 rounded text-white/70">{piloto.name_acronym}</span>
-                              </div>
-                              <div className="flex items-center gap-4 text-white/50 text-sm">
-                                <div className="flex items-center gap-2">
-                                  {flagUrl ? (
-                                    <img
-                                      src={flagUrl}
-                                      alt=""
-                                      className="w-4 h-3 rounded-sm object-cover shadow-sm"
-                                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                    />
-                                  ) : (
-                                    <span className="w-4 h-3 bg-gray-600 rounded-sm inline-block" />
-                                  )}
-                                  <span>{getDriverNationality(piloto)}</span>
-                                </div>
-                                <span>No. {piloto.driver_number}</span>
-                              </div>
-                            </div>
-
-                            {/* Points */}
-                            <div className="text-right pr-4">
-                              <div className="text-3xl font-black font-sans text-white group-hover/driver:text-[--team-color] transition-colors" style={{ '--team-color': teamColor }}>
-                                {piloto.puntos}
-                              </div>
-                              <div className="text-white/40 text-xs font-bold uppercase">PTS</div>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ))}
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">Pilotos</p>
+                  <p className="data-value mt-1">{equipos.reduce((sum, equipo) => sum + equipo.pilotos.length, 0)}</p>
+                </div>
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">Líder</p>
+                  <p className="data-value mt-1 truncate">{equipos[0]?.nombre || '-'}</p>
                 </div>
               </div>
             </div>
-          );
-        })}
+          </header>
+
+          <div ref={listRef} className="control-scroll grid grid-cols-1 gap-4 xl:grid-cols-2" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+            {equipos.map((equipo, index) => {
+              const teamColor = getTeamColor(equipo.nombre);
+              const teamRgb = hexToRgbString(teamColor);
+
+              return (
+                <article
+                  key={equipo.nombre}
+                  ref={(el) => (teamCardsRef.current[index] = el)}
+                  onMouseMove={(e) => handleMouseMove(e, index)}
+                  onMouseLeave={() => handleMouseLeave(index)}
+                  className="race-module min-h-[320px]"
+                  style={{ borderColor: `${teamColor}55` }}
+                >
+                  <div className="relative z-10">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-white/10 bg-black/30">
+                          <img
+                            src={getTeamLogo(equipo.nombre)}
+                            alt=""
+                            className="h-11 w-11 object-contain"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="data-label">Equipo</p>
+                          <h3 className="truncate font-racing text-3xl italic leading-none text-white">{equipo.nombre}</h3>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="data-value text-4xl" style={{ color: teamColor, textShadow: `0 0 24px rgba(${teamRgb},0.34)` }}>
+                          {equipo.puntos}
+                        </p>
+                        <p className="data-label">Pts</p>
+                      </div>
+                    </div>
+
+                    <div className="h-1 bg-white/10">
+                      <div className="h-full" style={{ width: `${Math.min(100, Math.max(8, Number(equipo.puntos || 0) / Math.max(1, Number(equipos[0]?.puntos || 1)) * 100))}%`, background: teamColor }} />
+                    </div>
+
+                    <div className="mt-5 space-y-2">
+                      {equipo.pilotos
+                        .slice()
+                        .sort((a, b) => b.puntos - a.puntos)
+                        .map((piloto, idx) => {
+                          const driverPhoto = getDriverPhoto(piloto);
+                          const flagUrl = getDriverFlag(piloto);
+
+                          return (
+                            <div
+                              key={piloto.driver_number || piloto.full_name || `${equipo.nombre}-${idx}`}
+                              className="timing-row min-h-[64px] grid-cols-[3rem_1fr_auto]"
+                            >
+                              <span className="h-10 w-10 overflow-hidden border border-white/10 bg-black/35">
+                                {driverPhoto ? (
+                                  <img src={driverPhoto} alt="" className="h-full w-full object-cover object-top" />
+                                ) : (
+                                  <span className="flex h-full items-center justify-center font-mono text-xs text-white/45">{piloto.driver_number}</span>
+                                )}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold text-white">{piloto.full_name}</span>
+                                <span className="flex items-center gap-2 text-xs text-white/45">
+                                  {flagUrl && <img src={flagUrl} alt="" className="h-3 w-4 object-cover" />}
+                                  #{piloto.driver_number || '?'} · {getDriverNationality(piloto)}
+                                </span>
+                              </span>
+                              <span className="text-right">
+                                <span className="data-value block">{piloto.puntos}</span>
+                                <span className="data-label">Pts</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -75,13 +75,13 @@ const RaceSessionResults = ({ sessionType, categorizedSessions, meetingData, loa
         const showTimeColumn = /race|sprint/.test(typeTextForSession);
 
         return (
-          <div key={session.session_key} className="glass rounded-xl p-4">
+          <div key={session.session_key} className="glass p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-white flex items-center space-x-2">
+              <h4 className="font-racing italic text-xl text-white flex items-center space-x-2">
                 {getSessionIcon(sessionType)}
                 <span>{sessionInfo.session_name || getSessionName(sessionType)}</span>
               </h4>
-              <span className="text-white/60 text-sm">
+              <span className="data-label">
                 {formatearFechaHora(sessionInfo.date_start)}
               </span>
             </div>
@@ -89,11 +89,11 @@ const RaceSessionResults = ({ sessionType, categorizedSessions, meetingData, loa
             {sessionResults.length > 0 ? (
               <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                 <div className="sticky top-0 z-10 grid grid-cols-12 gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm border-b border-white/10">
-                  <div className="col-span-2 text-white/80 text-sm font-medium">Pos / Nº</div>
-                  <div className="col-span-4 text-white/80 text-sm font-medium">Piloto</div>
-                  <div className={`${showTimeColumn ? 'col-span-4' : 'col-span-6'} text-white/80 text-sm font-medium`}>Equipo</div>
+                  <div className="col-span-2 data-label text-white/80">Pos / Nº</div>
+                  <div className="col-span-4 data-label text-white/80">Piloto</div>
+                  <div className={`${showTimeColumn ? 'col-span-4' : 'col-span-6'} data-label text-white/80`}>Equipo</div>
                   {showTimeColumn && (
-                    <div className="col-span-2 text-white/80 text-sm font-medium text-right">Tiempo / Gap</div>
+                    <div className="col-span-2 data-label text-white/80 text-right">Tiempo / Gap</div>
                   )}
                 </div>
 
@@ -107,12 +107,12 @@ const RaceSessionResults = ({ sessionType, categorizedSessions, meetingData, loa
                   return (
                     <div
                       key={result.driver_number || index}
-                      className="grid grid-cols-12 gap-3 items-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                      className="grid grid-cols-12 gap-3 items-center bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
                       style={{ borderLeft: `4px solid ${teamColor}` }}
                     >
                       <div className="col-span-2 flex items-center space-x-3 px-4 py-3">
                         <div
-                          className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-extrabold shadow-lg border ${position === 1
+                          className={`relative w-10 h-10 flex items-center justify-center text-sm font-mono font-extrabold shadow-lg border ${position === 1
                             ? 'bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 text-black border-yellow-200/50 shadow-yellow-400/30'
                             : position === 2
                               ? 'bg-gradient-to-br from-gray-300 via-gray-400 to-slate-500 text-black border-gray-200/50 shadow-gray-400/30'
@@ -131,14 +131,14 @@ const RaceSessionResults = ({ sessionType, categorizedSessions, meetingData, loa
                           <img
                             src={getDriverPhoto(result.driver_info) || '/drivers/default.png'}
                             alt={driverName}
-                            className="w-9 h-9 rounded-full object-cover border-2 border-white/20"
+                            className="w-9 h-9 object-cover border-2 border-white/20"
                             onError={(event) => {
                               event.currentTarget.style.display = 'none';
                               event.currentTarget.nextElementSibling.style.display = 'flex';
                             }}
                           />
                           <div
-                            className="w-9 h-9 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center text-white font-bold text-xs border-2 border-white/20"
+                            className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center text-white font-bold text-xs border-2 border-white/20"
                             style={{ display: 'none' }}
                           >
                             {result.driver_number || '?'}
@@ -153,7 +153,7 @@ const RaceSessionResults = ({ sessionType, categorizedSessions, meetingData, loa
 
                       {showTimeColumn && (
                         <div className="col-span-2 px-4 py-3 text-right">
-                          <p className="text-white text-base font-semibold">{timeOrGap}</p>
+                          <p className="data-value text-base">{timeOrGap}</p>
                         </div>
                       )}
                     </div>

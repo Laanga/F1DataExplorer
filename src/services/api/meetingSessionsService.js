@@ -1,6 +1,6 @@
 import { API_CONFIG } from '../config/apiConfig.js';
 import { getCachedData, setCachedData } from '../utils/cache.js';
-import { safeRequest } from '../utils/rateLimiter.js';
+import { isRateLimitError, safeRequest } from '../utils/rateLimiter.js';
 
 /**
  * Servicio para obtener todas las sesiones de un meeting y sus resultados
@@ -27,6 +27,10 @@ const hasStaleCompletedSessions = (meetingData) => {
     return isCompletedSessionWithoutResults(sessionResults, session?.date_end);
   });
 };
+
+const completeMeetingRequests = new Map();
+const sessionResultRequests = new Map();
+const sessionDriverRequests = new Map();
 
 /**
  * Obtiene todas las sesiones de un meeting específico
@@ -58,8 +62,10 @@ export const getMeetingSessions = async (meetingKey) => {
     setCachedData(cacheKey, sortedSessions);
     return sortedSessions;
   } catch (error) {
-    console.error(`❌ Error al obtener sesiones del meeting ${meetingKey}:`, error.message);
-    return [];
+    if (!isRateLimitError(error)) {
+      console.error(`❌ Error al obtener sesiones del meeting ${meetingKey}:`, error.message);
+    }
+    return getCachedData(cacheKey, true) || [];
   }
 };
 
@@ -78,7 +84,10 @@ export const getSessionResults = async (sessionKey, sessionType, options = {}) =
     return cachedData;
   }
 
-  try {
+  const existingRequest = sessionResultRequests.get(sessionKey);
+  if (existingRequest) return existingRequest;
+
+  const requestPromise = (async () => {
     let results = [];
     const typeText = String(sessionType || '').toLowerCase();
     const trySessionResultFirst = (
@@ -99,7 +108,11 @@ export const getSessionResults = async (sessionKey, sessionType, options = {}) =
         });
         results = sessionResultResponse.data || [];
       } catch (error) {
-        // No se encontraron session_result, intentando con position
+        if (isRateLimitError(error)) {
+          const oldCachedData = getCachedData(cacheKey, true);
+          if (oldCachedData) return oldCachedData;
+          return [];
+        }
       }
     }
     
@@ -124,7 +137,9 @@ export const getSessionResults = async (sessionKey, sessionType, options = {}) =
           results = Object.values(latestPositions).sort((a, b) => a.position - b.position);
         }
       } catch (error) {
-        console.error(`❌ Error al obtener posiciones para sesión ${sessionKey}:`, error.message);
+        if (!isRateLimitError(error)) {
+          console.error(`❌ Error al obtener posiciones para sesión ${sessionKey}:`, error.message);
+        }
       }
     }
 
@@ -132,10 +147,17 @@ export const getSessionResults = async (sessionKey, sessionType, options = {}) =
       setCachedData(cacheKey, results);
     }
     return results;
-  } catch (error) {
-    console.error(`❌ Error al obtener resultados de la sesión ${sessionKey}:`, error.message);
-    return [];
-  }
+  })().catch((error) => {
+    if (!isRateLimitError(error)) {
+      console.error(`❌ Error al obtener resultados de la sesión ${sessionKey}:`, error.message);
+    }
+    return getCachedData(cacheKey, true) || [];
+  }).finally(() => {
+    sessionResultRequests.delete(sessionKey);
+  });
+
+  sessionResultRequests.set(sessionKey, requestPromise);
+  return requestPromise;
 };
 
 /**
@@ -151,7 +173,10 @@ export const getSessionDrivers = async (sessionKey) => {
     return cachedData;
   }
 
-  try {
+  const existingRequest = sessionDriverRequests.get(sessionKey);
+  if (existingRequest) return existingRequest;
+
+  const requestPromise = (async () => {
     const response = await safeRequest(`${API_CONFIG.OPENF1.BASE_URL}/drivers`, {
       params: { session_key: sessionKey }
     });
@@ -159,10 +184,17 @@ export const getSessionDrivers = async (sessionKey) => {
     const drivers = response.data || [];
     setCachedData(cacheKey, drivers);
     return drivers;
-  } catch (error) {
-    console.error(`❌ Error al obtener pilotos de la sesión ${sessionKey}:`, error.message);
-    return [];
-  }
+  })().catch((error) => {
+    if (!isRateLimitError(error)) {
+      console.error(`❌ Error al obtener pilotos de la sesión ${sessionKey}:`, error.message);
+    }
+    return getCachedData(cacheKey, true) || [];
+  }).finally(() => {
+    sessionDriverRequests.delete(sessionKey);
+  });
+
+  sessionDriverRequests.set(sessionKey, requestPromise);
+  return requestPromise;
 };
 
 /**
@@ -178,7 +210,10 @@ export const getCompleteMeetingResults = async (meetingKey) => {
     return cachedData;
   }
 
-  try {
+  const existingRequest = completeMeetingRequests.get(meetingKey);
+  if (existingRequest) return existingRequest;
+
+  const requestPromise = (async () => {
     const sessions = await getMeetingSessions(meetingKey);
     const sessionResults = {};
     
@@ -188,11 +223,8 @@ export const getCompleteMeetingResults = async (meetingKey) => {
       const sessionType = session.session_name || session.session_type;
       
       try {
-        // Obtener resultados y pilotos en paralelo (el rate limiter serializa si es necesario)
-        const [results, drivers] = await Promise.all([
-          getSessionResults(session.session_key, sessionType, { sessionDateEnd: session.date_end }),
-          getSessionDrivers(session.session_key)
-        ]);
+        const results = await getSessionResults(session.session_key, sessionType, { sessionDateEnd: session.date_end });
+        const drivers = results.length > 0 ? await getSessionDrivers(session.session_key) : [];
         
         // Combinar resultados con información de pilotos
         const completeResults = results.map(result => {
@@ -234,8 +266,10 @@ export const getCompleteMeetingResults = async (meetingKey) => {
     }
     return result;
     
-  } catch (error) {
-    console.error(`❌ Error al obtener resultados completos del meeting ${meetingKey}:`, error.message);
+  })().catch((error) => {
+    if (!isRateLimitError(error)) {
+      console.error(`❌ Error al obtener resultados completos del meeting ${meetingKey}:`, error.message);
+    }
     
     // Intentar usar datos en caché como fallback
     const oldCachedData = getCachedData(cacheKey, true);
@@ -248,7 +282,12 @@ export const getCompleteMeetingResults = async (meetingKey) => {
       sessions: {},
       session_list: []
     };
-  }
+  }).finally(() => {
+    completeMeetingRequests.delete(meetingKey);
+  });
+
+  completeMeetingRequests.set(meetingKey, requestPromise);
+  return requestPromise;
 };
 
 /**

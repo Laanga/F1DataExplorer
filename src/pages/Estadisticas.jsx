@@ -6,17 +6,15 @@ import {
   Timer,
   Target,
   Building2,
-  Users
+  Users,
+  User
 } from 'lucide-react';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { getStatistics, getChampionshipStandings } from '../services/openf1Service';
 import { getTeamColor, getDriverTeamColor } from '../utils/chartColors';
 import { getDriverPhoto, getTeamLogo } from '../utils/formatUtils';
 import { useYear } from '../contexts/YearContext';
 import Loader from '../components/ui/Loader';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const CONSTRUCTORS_DISPLAY_LIMIT = 11;
 const COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
@@ -39,6 +37,15 @@ const formatCompactDate = (value) => {
 };
 
 const formatMetric = (value) => Number(value || 0).toLocaleString('es-ES');
+
+const withTimeout = (promise, label, timeoutMs = 18000) => (
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} no respondió a tiempo`)), timeoutMs);
+    })
+  ])
+);
 
 const getDriverName = (driverStanding) => {
   const given = driverStanding?.driver?.givenName || '';
@@ -99,15 +106,23 @@ const Estadisticas = () => {
         setLoading(true);
         setError(null);
 
-        const [statistics, standings] = await Promise.all([
-          getStatistics({ signal, year: statsYear }),
-          getChampionshipStandings({ signal, year: statsYear })
+        const [statisticsResult, standingsResult] = await Promise.allSettled([
+          withTimeout(getStatistics({ signal, year: statsYear }), 'Estadísticas'),
+          withTimeout(getChampionshipStandings({ signal, year: statsYear }), 'Clasificación')
         ]);
 
         if (signal.aborted) return;
 
+        const statistics = statisticsResult.status === 'fulfilled' ? statisticsResult.value : {};
+        const standings = standingsResult.status === 'fulfilled' ? standingsResult.value : { constructors: [], drivers: [] };
+        const rejectedReasons = [statisticsResult, standingsResult]
+          .filter((result) => result.status === 'rejected')
+          .map((result) => result.reason?.message)
+          .filter(Boolean);
+
         setStats(statistics || {});
-        setChampionship(standings || { constructors: [] });
+        setChampionship(standings || { constructors: [], drivers: [] });
+        setError(rejectedReasons.length > 0 ? rejectedReasons.join(' · ') : null);
       } catch (loadError) {
         if (loadError?.name === 'AbortError' || loadError?.code === 'ERR_CANCELED') {
           return;
@@ -250,6 +265,27 @@ const Estadisticas = () => {
     ? Math.max(0, driverRows[0].points - driverRows[9].points)
     : 0;
 
+  const closestTeamBattle = useMemo(() => {
+    const battles = championshipConstructors
+      .map((team) => {
+        const drivers = Array.isArray(team?.drivers)
+          ? [...team.drivers].sort((a, b) => Number(b?.points || 0) - Number(a?.points || 0))
+          : [];
+        if (drivers.length < 2) return null;
+
+        return {
+          team: team.team_name || 'Equipo',
+          gap: Math.abs(Number(drivers[0]?.points || 0) - Number(drivers[1]?.points || 0))
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.gap - b.gap);
+
+    return battles[0] || null;
+  }, [championshipConstructors]);
+
+  const remainingRaces = Math.max(0, Number(stats?.totalRaces || 0) - Number(stats?.completedRaces || 0));
+
   const upcomingMeetings = useMemo(() => {
     const source = Array.isArray(stats?.upcomingMeetings) ? stats.upcomingMeetings : [];
     return source.slice(0, 4).map((meeting, index) => ({
@@ -296,6 +332,18 @@ const Estadisticas = () => {
       value: p10Spread > 0 ? `${formatMetric(p10Spread)} pts` : 'N/A',
       icon: Target,
       tone: '#f59e0b'
+    },
+    {
+      label: 'Duelo interno',
+      value: closestTeamBattle ? `${closestTeamBattle.team} · ${formatMetric(closestTeamBattle.gap)} pts` : 'Sin datos',
+      icon: Trophy,
+      tone: '#a78bfa'
+    },
+    {
+      label: 'Carreras pendientes',
+      value: `${formatMetric(remainingRaces)}`,
+      icon: CalendarDays,
+      tone: '#fb7185'
     }
   ];
 
@@ -304,91 +352,12 @@ const Estadisticas = () => {
 
     const ctx = gsap.context(() => {
       if (headerRef.current) {
-        gsap.fromTo(
-          headerRef.current,
-          { opacity: 0, y: 40 },
-          { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out' }
-        );
-      }
-
-      if (driversRef.current) {
-        const rows = driversRef.current.querySelectorAll('[data-driver-row]');
-        gsap.fromTo(
-          rows,
-          { opacity: 0, x: -22 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            stagger: 0.05,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: driversRef.current,
-              start: 'top 78%'
-            }
-          }
-        );
-      }
-
-      if (constructorsRef.current) {
-        const rows = constructorsRef.current.querySelectorAll('[data-constructor-row]');
-        gsap.fromTo(
-          rows,
-          { opacity: 0, x: 22 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            stagger: 0.06,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: constructorsRef.current,
-              start: 'top 80%'
-            }
-          }
-        );
-      }
-
-      if (upcomingRef.current) {
-        gsap.fromTo(
-          upcomingRef.current,
-          { opacity: 0, y: 28 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.7,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: upcomingRef.current,
-              start: 'top 84%'
-            }
-          }
-        );
-      }
-
-      if (insightsRef.current) {
-        const cards = insightsRef.current.querySelectorAll('[data-insight-card]');
-        gsap.fromTo(
-          cards,
-          { opacity: 0, y: 22, scale: 0.98 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.55,
-            stagger: 0.08,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: insightsRef.current,
-              start: 'top 84%'
-            }
-          }
-        );
+        gsap.from(headerRef.current, { y: 18, duration: 0.45, ease: 'power2.out' });
       }
     });
 
     return () => ctx.revert();
-  }, [loading, statsYear, driverRows.length, constructorRows.length, upcomingMeetings.length]);
+  }, [loading, statsYear]);
 
   if (loading) {
     return (
@@ -409,44 +378,63 @@ const Estadisticas = () => {
   }
 
   return (
-    <div className="min-h-screen bg-f1-dark relative overflow-hidden pb-24">
-      <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,rgba(225,6,0,0.18)_0%,transparent_55%)]" />
-      <div className="pointer-events-none absolute -top-24 right-[-6rem] h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/2 left-[-5rem] h-64 w-64 rounded-full bg-f1-red/12 blur-3xl" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-10 relative z-10">
-        <header ref={headerRef} className="mb-8 sm:mb-10" style={{ opacity: 0 }}>
-          <div className="flex flex-wrap items-center gap-3 mb-3">
-            <span className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.25em] uppercase text-f1-red">
-              <BarChart2 className="w-4 h-4" />
-              Race Intelligence
-            </span>
-            <span className={`text-[11px] border rounded-full px-3 py-1 ${dataSourceTone}`}>
-              {dataSourceLabel}
-            </span>
+    <div className="control-page">
+      <div className="race-shell control-shell">
+        <aside className="race-rail flex min-h-0 flex-col overflow-y-auto" data-lenis-prevent>
+          <div className="hud-kicker mb-5">
+            <BarChart2 className="h-3.5 w-3.5" />
+            Datos
           </div>
-          <h1 className="text-5xl md:text-7xl font-racing tracking-tight text-white uppercase leading-none">
-            Estadísticas
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white/80 to-white/30">
-              Temporada {statsYear}
-            </span>
-          </h1>
-          <p className="mt-4 text-white/65 max-w-3xl text-sm sm:text-base">
-            Vista centrada en contexto competitivo real: diferencia por el título, ritmo de constructores y calendario inmediato.
+          <h1 className="font-racing text-[2rem] italic leading-none text-white">Estadísticas</h1>
+          <p className="mt-3 text-sm text-white/58">
+            Indicadores de campeonato, brechas clave y próximas carreras en una vista de análisis.
           </p>
-        </header>
+          <span className={`mt-5 inline-flex text-[11px] border px-3 py-1 font-mono uppercase tracking-[0.14em] ${dataSourceTone}`}>
+            {dataSourceLabel}
+          </span>
 
-        <section ref={driversRef} className="glass rounded-[2rem] p-6 sm:p-8 mb-8">
+          <div className="mt-6 min-h-0 space-y-3 overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+            {insightCards.map((card) => (
+              <div key={`rail-${card.label}`} className="border border-white/10 bg-black/20 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <card.icon className="h-4 w-4" style={{ color: card.tone }} />
+                  <p className="data-label">{card.label}</p>
+                </div>
+                <p className="data-value text-2xl">{card.value}</p>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <main className="control-main">
+          <header ref={headerRef} className="race-module shrink-0">
+            <div className="relative z-10">
+              <div className="hud-kicker mb-4">Temporada {statsYear}</div>
+              <h2 className="font-racing text-4xl italic leading-none text-white sm:text-6xl">Estadísticas</h2>
+              <p className="mt-3 max-w-3xl text-sm text-white/60">
+                Vista centrada en contexto competitivo real: diferencia por el título, ritmo de constructores y calendario inmediato.
+              </p>
+            </div>
+          </header>
+
+          {error && (
+            <div className="shrink-0 border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+              {error}
+            </div>
+          )}
+
+          <div className="control-scroll space-y-4" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+            <section ref={driversRef} className="race-module">
           <div className="flex flex-wrap items-center gap-3 justify-between">
-            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h3 className="text-2xl font-racing italic text-white flex items-center gap-2">
               <Trophy className="w-6 h-6 text-yellow-400" />
               Batalla por el titulo
             </h3>
-            <span className="text-xs uppercase tracking-[0.2em] text-white/45">Top 10 pilotos</span>
+            <span className="data-label">Top 10 pilotos</span>
           </div>
 
           <p className="text-white/60 text-sm mt-2 mb-5">
-            Clasificación única con diferencia real frente al líder, evitando gráficos duplicados de la misma métrica.
+            Diferencia frente al líder, victorias y puntos para leer la lucha por el campeonato.
           </p>
 
           <div className="space-y-3">
@@ -454,11 +442,11 @@ const Estadisticas = () => {
               <div
                 key={`${driver.position}-${driver.code}-${driver.name}`}
                 data-driver-row
-                className="rounded-2xl border border-white/10 bg-black/25 px-3 sm:px-4 py-3"
+                className="border border-white/10 bg-black/25 px-3 sm:px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold border"
+                    className="w-10 h-10 flex items-center justify-center text-sm font-mono font-bold border"
                     style={{
                       color: driver.color,
                       borderColor: `${driver.color}88`,
@@ -468,15 +456,20 @@ const Estadisticas = () => {
                     {driver.position}
                   </div>
 
-                  <div className="w-11 h-11 rounded-full overflow-hidden border border-white/20 bg-black/40 flex items-center justify-center">
+                  <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden border border-white/20 bg-black/40">
                     {driver.photo ? (
                       <img
                         src={driver.photo}
                         alt={driver.name}
-                        className="w-full h-full object-cover object-top"
+                        className="h-full w-full object-cover object-top"
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                        }}
                       />
                     ) : (
-                      <span className="text-xs font-bold text-white/70">{driver.initials}</span>
+                      <span className="text-white/45">
+                        <User className="h-4 w-4" />
+                      </span>
                     )}
                   </div>
 
@@ -486,9 +479,9 @@ const Estadisticas = () => {
                   </div>
 
                   <div className="hidden md:block flex-1">
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-2 bg-white/10 overflow-hidden">
                       <div
-                        className="h-full rounded-full"
+                        className="h-full"
                         style={{
                           width: `${Math.max(3, driver.ratio)}%`,
                           background: `linear-gradient(90deg, ${driver.color}, ${driver.color}99)`
@@ -513,21 +506,21 @@ const Estadisticas = () => {
               </div>
             ))}
           </div>
-        </section>
+            </section>
 
-        <section ref={constructorsRef} className="glass rounded-[2rem] p-6 sm:p-8 mb-8">
+            <section ref={constructorsRef} className="race-module">
           <div className="flex flex-wrap items-center gap-3 justify-between">
-            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h3 className="text-2xl font-racing italic text-white flex items-center gap-2">
               <Building2 className="w-6 h-6 text-cyan-300" />
               Constructores
             </h3>
-            <span className="text-xs uppercase tracking-[0.2em] text-white/45">
+            <span className="data-label">
               {constructorRows.length} equipos
             </span>
           </div>
 
           <p className="text-white/60 text-sm mt-2 mb-5">
-            Comparativa visual de puntos con referencia al líder. Se elimina la duplicación entre tarjeta y gráfica.
+            Puntos, victorias y piloto referencia para medir el pulso entre constructores.
           </p>
 
           <div className="space-y-3">
@@ -537,12 +530,12 @@ const Estadisticas = () => {
                 <div
                   key={`${team.position}-${team.name}`}
                   data-constructor-row
-                  className="rounded-2xl border border-white/10 bg-black/25 px-3 sm:px-4 py-3"
+                  className="border border-white/10 bg-black/25 px-3 sm:px-4 py-3"
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
                     <div className="flex items-center gap-3 min-w-[250px]">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold border"
+                        className="w-10 h-10 flex items-center justify-center text-sm font-mono font-bold border"
                         style={{
                           color: team.color,
                           borderColor: `${team.color}88`,
@@ -552,7 +545,7 @@ const Estadisticas = () => {
                         {team.position}
                       </div>
 
-                      <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center">
+                      <div className="w-11 h-11 overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center">
                         <img
                           src={team.logo}
                           alt={team.name}
@@ -572,9 +565,9 @@ const Estadisticas = () => {
                     </div>
 
                     <div className="flex-1">
-                      <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-2.5 bg-white/10 overflow-hidden">
                         <div
-                          className="h-full rounded-full"
+                          className="h-full"
                           style={{
                             width: `${Math.max(4, ratio)}%`,
                             background: `linear-gradient(90deg, ${team.color}, ${team.color}99)`
@@ -586,7 +579,7 @@ const Estadisticas = () => {
                     <div className="ml-auto flex items-end md:items-center gap-5">
                       <div className="text-right">
                         <p className="text-white text-xl font-black leading-none">{formatMetric(team.points)}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-white/50">PTS</p>
+                        <p className="text-[10px] uppercase tracking-wider text-white/50">Pts</p>
                       </div>
                       <div className="text-right">
                         <p className="text-white text-lg font-bold leading-none">{formatMetric(team.wins)}</p>
@@ -598,19 +591,19 @@ const Estadisticas = () => {
               );
             })}
           </div>
-        </section>
+            </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section ref={upcomingRef} className="glass rounded-[2rem] p-6 sm:p-8" style={{ opacity: 0 }}>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <section ref={upcomingRef} className="race-module">
             <div className="flex items-center gap-2 mb-5">
               <CalendarDays className="w-5 h-5 text-f1-red" />
-              <h3 className="text-xl font-bold text-white">Próximos Grandes Premios</h3>
+              <h3 className="text-xl font-racing italic text-white">Próximos Grandes Premios</h3>
             </div>
 
             {upcomingMeetings.length > 0 ? (
               <div className="space-y-3">
                 {upcomingMeetings.map((meeting) => (
-                  <div key={meeting.id} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                  <div key={meeting.id} className="border border-white/10 bg-black/20 px-4 py-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-white font-semibold truncate">{meeting.name}</p>
@@ -630,16 +623,16 @@ const Estadisticas = () => {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white/60">
+              <div className="border border-white/10 bg-black/20 px-4 py-4 text-sm text-white/60">
                 No hay próximas carreras disponibles todavía.
               </div>
             )}
-          </section>
+              </section>
 
-          <section ref={insightsRef} className="glass rounded-[2rem] p-6 sm:p-8">
+              <section ref={insightsRef} className="race-module">
             <div className="flex items-center gap-2 mb-5">
               <Target className="w-5 h-5 text-amber-400" />
-              <h3 className="text-xl font-bold text-white">Indicadores competitivos</h3>
+              <h3 className="text-xl font-racing italic text-white">Indicadores competitivos</h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -647,25 +640,26 @@ const Estadisticas = () => {
                 <div
                   key={card.label}
                   data-insight-card
-                  className="rounded-xl border border-white/10 bg-black/20 p-4"
-                  style={{ opacity: 0 }}
+                  className="border border-white/10 bg-black/20 p-4"
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <card.icon className="w-4 h-4" style={{ color: card.tone }} />
                     <p className="text-xs uppercase tracking-wider text-white/55">{card.label}</p>
                   </div>
-                  <p className="text-2xl font-black text-white">{card.value}</p>
+                  <p className="data-value text-2xl">{card.value}</p>
                 </div>
               ))}
             </div>
-          </section>
-        </div>
+              </section>
+            </div>
 
-        <footer className="mt-12 text-center">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-white/35">
-            Datos combinados de OpenF1 y Ergast · Actualización por temporada
-          </p>
-        </footer>
+            <footer className="mt-8 text-center">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/35">
+                Datos combinados de OpenF1 y Ergast · Actualización por temporada
+              </p>
+            </footer>
+          </div>
+        </main>
       </div>
     </div>
   );

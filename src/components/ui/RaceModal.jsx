@@ -252,10 +252,10 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
             onClick={handleClose}
             onMouseEnter={(e) => handleCloseHover(e, true)}
             onMouseLeave={(e) => handleCloseHover(e, false)}
-            className="absolute -top-4 -right-4 z-[60] p-2.5 rounded-full border border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl"
+            className="absolute -top-4 -right-4 z-[60] p-2.5 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl"
             aria-label="Cerrar detalle de carrera"
             style={{
-              background: 'linear-gradient(135deg, rgba(225,6,0,0.9) 0%, rgba(185,28,28,0.9) 100%)',
+              background: 'linear-gradient(135deg, rgba(255,85,61,0.94) 0%, rgba(190,14,0,0.94) 100%)',
               backdropFilter: 'blur(10px)',
               boxShadow: '0 4px 20px rgba(225,6,0,0.4), 0 2px 8px rgba(0,0,0,0.5)'
             }}
@@ -265,7 +265,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
 
           <div
             ref={modalRef}
-            className="glass glass-hover rounded-3xl border border-white/20 shadow-glass w-full max-w-full max-h-[calc(100dvh-2rem)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden overscroll-contain"
+            className="glass glass-hover border border-white/20 shadow-glass w-full max-w-full max-h-[calc(100dvh-2rem)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden overscroll-contain"
             data-lenis-prevent
             data-lenis-prevent-wheel
             data-lenis-prevent-touch
@@ -275,7 +275,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
               opacity: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              background: 'linear-gradient(135deg, rgba(47,26,22,0.78) 0%, rgba(21,21,30,0.92) 100%)',
               backdropFilter: 'blur(8px)',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
             }}
@@ -286,7 +286,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
             }}>
               <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:space-x-3">
                 <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center glass border border-white/20 shadow-glass ${isCompleted
+                  className={`w-10 h-10 flex items-center justify-center glass border border-white/20 shadow-glass ${isCompleted
                     ? 'bg-gradient-to-br from-green-500/30 to-green-600/30'
                     : 'bg-gradient-to-br from-blue-500/30 to-blue-600/30'
                     }`}
@@ -297,10 +297,10 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                 </div>
 
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-white mb-1">
+                  <h2 className="text-2xl font-racing italic text-white mb-1">
                     {meeting?.meeting_name || carrera.session_name || 'Gran Premio'}
                   </h2>
-                  <div className="flex items-center space-x-2 text-white/60 text-xs">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-white/60 text-xs">
                     <div className="flex items-center space-x-1">
                       <MapPin className="w-4 h-4" />
                       <span>{meeting?.location || 'Ubicación no disponible'}</span>
@@ -319,7 +319,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
               {/* Loading */}
               {loadingMeeting && (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="w-12 h-12 border-4 border-f1-red/30 border-t-f1-red rounded-full animate-spin" />
+                  <div className="w-12 h-12 border-4 border-f1-red/30 border-t-f1-copper rounded-full animate-spin" />
                   <div className="text-center">
                     <p className="text-white font-medium mb-1">Cargando datos de la carrera…</p>
                     <p className="text-white/60 text-sm">Obteniendo información detallada del evento</p>
@@ -343,7 +343,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                   {/* Status Badge */}
                   <div className="flex justify-center">
                     <div
-                      className={`px-6 py-3 rounded-2xl text-sm font-medium glass border transition-all duration-300 ${isCompleted
+                      className={`px-6 py-3 text-sm font-mono uppercase tracking-[0.12em] glass border transition-all duration-300 ${isCompleted
                         ? 'bg-green-500/20 text-green-400 border-green-500/30'
                         : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                         }`}
@@ -385,7 +385,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                           onClick={() => setShowEventInfo(v => !v)}
                           onMouseEnter={(e) => handleTabHover(e, true)}
                           onMouseLeave={(e) => handleTabHover(e, false)}
-                          className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${showEventInfo
+                          className={`inline-flex items-center space-x-2 px-3 py-1.5 text-xs font-mono uppercase tracking-[0.1em] transition-all duration-300 border ${showEventInfo
                             ? 'glass text-white border-white/20'
                             : 'text-white/80 glass-hover border-white/10 hover:text-white'
                             }`}
@@ -396,7 +396,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                       </div>
 
                       {showEventInfo && (
-                        <div className="glass glass-hover rounded-2xl p-4 border border-white/10">
+                        <div className="glass glass-hover p-4 border border-white/10">
                           <div className="flex items-center space-x-2 mb-3">
                             <Users className="w-5 h-5 text-purple-400" />
                             <h3 className="font-semibold text-white text-sm">Información del Evento</h3>
@@ -413,7 +413,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                   )}
 
                   {/* Tabs */}
-                  <div className="glass rounded-2xl p-1.5 border border-white/10">
+                  <div className="glass p-1.5 border border-white/10">
                     <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:space-x-2">
                       {['practice', 'qualifying', 'sprint', 'race'].map((tab) => {
                         const hasData = categorizedSessions[tab]?.length > 0;
@@ -424,7 +424,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                             onMouseEnter={(e) => hasData && handleTabHover(e, true)}
                             onMouseLeave={(e) => hasData && handleTabHover(e, false)}
                             disabled={!hasData}
-                            className={`flex-1 min-w-[140px] flex items-center justify-center space-x-2 py-2 px-3 sm:py-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 ${activeTab === tab
+                            className={`flex-1 min-w-[140px] flex items-center justify-center space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-sm font-mono uppercase tracking-[0.08em] transition-all duration-300 ${activeTab === tab
                               ? 'glass text-white shadow-glass border border-white/20'
                               : hasData
                                 ? 'text-white/70 hover:text-white hover:glass hover:border-white/10'
@@ -437,7 +437,7 @@ const RaceModal = ({ isOpen, onClose, carrera, meeting }) => {
                             {getSessionIcon(tab)}
                             <span className="text-sm">{getSessionName(tab)}</span>
                             {hasData && (
-                              <span className="glass text-xs px-2 py-0.5 rounded-full border border-white/20">
+                              <span className="glass text-xs px-2 py-0.5 border border-white/20">
                                 {categorizedSessions[tab].length}
                               </span>
                             )}

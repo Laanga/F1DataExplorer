@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import Lenis from 'lenis';
@@ -6,6 +6,7 @@ import { YearProvider } from './contexts/YearContext';
 import Navbar from './components/layout/Navbar';
 import FondoAnimado from './components/ui/FondoAnimado';
 import Loader from './components/ui/Loader';
+import AppStartLoader from './components/ui/AppStartLoader';
 
 // Lazy loading de páginas
 const Inicio = lazy(() => import('./pages/Inicio'));
@@ -42,6 +43,12 @@ const AppContent = () => {
 };
 
 const App = () => {
+  const [showStartLoader, setShowStartLoader] = useState(true);
+
+  const handleStartComplete = useCallback(() => {
+    setShowStartLoader(false);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return undefined;
@@ -70,12 +77,17 @@ const App = () => {
   }, []);
 
   return (
-    <Router>
-      <YearProvider>
-        <AppContent />
-        <Analytics />
-      </YearProvider>
-    </Router>
+    <>
+      <div className={`app-boot-content ${showStartLoader ? 'is-preparing' : 'is-ready'}`}>
+        <Router>
+          <YearProvider>
+            <AppContent />
+            <Analytics />
+          </YearProvider>
+        </Router>
+      </div>
+      {showStartLoader && <AppStartLoader onComplete={handleStartComplete} />}
+    </>
   );
 };
 

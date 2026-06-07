@@ -8,9 +8,11 @@ export default {
   theme: {
   	extend: {
   		colors: {
-  			'f1-red': '#e10600',
-  			'f1-dark': '#0a0a0a',
-  			'f1-gray': '#1a1a1a',
+  			'f1-red': '#ff553d',
+  			'f1-dark': '#120806',
+  			'f1-gray': '#241411',
+  			'f1-asphalt': '#15151e',
+  			'f1-copper': '#ffb4a7',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -53,8 +55,9 @@ export default {
   			}
   		},
   		fontFamily: {
-  			sans: ['Outfit', 'system-ui', 'sans-serif'],
-  			racing: ['"Racing Sans One"', 'cursive']
+  			sans: ['Inter', 'system-ui', 'sans-serif'],
+  			racing: ['"Archivo Narrow"', 'Inter', 'sans-serif'],
+  			mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace']
   		},
   		backdropBlur: {
   			xs: '2px'

@@ -151,14 +151,17 @@ const CardPiloto = ({ piloto, onClick }) => {
     >
       <div
         ref={contentRef}
-        className="w-full h-full rounded-[2rem] p-6 flex flex-col justify-end overflow-hidden relative"
+        className="w-full h-full p-5 flex flex-col justify-end overflow-hidden relative"
         style={{
           transformStyle: 'preserve-3d',
-          background: `linear-gradient(155deg, rgba(${rgb.r},${rgb.g},${rgb.b},0.15) 0%, rgba(8,12,24,0.8) 100%)`,
-          border: `1px solid rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+          clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px))',
+          background: `linear-gradient(150deg, rgba(${rgb.r},${rgb.g},${rgb.b},0.2) 0%, rgba(21,21,30,0.88) 42%, rgba(18,8,6,0.95) 100%)`,
+          border: `1px solid rgba(${rgb.r},${rgb.g},${rgb.b},0.48)`,
+          boxShadow: `0 16px 36px rgba(0,0,0,0.38), inset 4px 0 0 rgba(${rgb.r},${rgb.g},${rgb.b},0.8)`
         }}
       >
+        <div className="absolute inset-0 bg-technical-grid opacity-35 pointer-events-none" />
+
         {/* Abstract Background Image/Logo */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ transform: 'translateZ(-50px)' }}>
           <img
@@ -174,10 +177,10 @@ const CardPiloto = ({ piloto, onClick }) => {
         {/* Big Number Background */}
         <div
           ref={numRef}
-          className="absolute -top-4 -right-2 font-racing text-[8rem] leading-none pointer-events-none"
+          className="absolute -top-4 -right-2 font-mono text-[7.5rem] font-extrabold leading-none pointer-events-none"
           style={{
             color: 'transparent',
-            WebkitTextStroke: `2px rgba(${rgb.r},${rgb.g},${rgb.b},0.2)`,
+            WebkitTextStroke: `1px rgba(${rgb.r},${rgb.g},${rgb.b},0.35)`,
             transform: 'translateZ(-20px)'
           }}
         >
@@ -185,13 +188,13 @@ const CardPiloto = ({ piloto, onClick }) => {
         </div>
 
         {/* Driver Photo Center/Top */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-40 h-40 pointer-events-none" style={{ transform: 'translateZ(30px)' }}>
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 w-44 h-44 pointer-events-none" style={{ transform: 'translateZ(30px)' }}>
           {fotoUrl && (
             <img
               ref={photoRef}
               src={fotoUrl}
               alt=""
-              className="w-full h-full object-cover object-top drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)] filter contrast-125 saturate-110"
+              className="w-full h-full object-cover object-top drop-shadow-[0_18px_18px_rgba(0,0,0,0.62)] filter contrast-125 saturate-110"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
           )}
@@ -210,35 +213,48 @@ const CardPiloto = ({ piloto, onClick }) => {
                   alt=""
                 />
               )}
-              <span className="text-xs font-sans tracking-widest uppercase text-white font-bold">{nacionalidad}</span>
+            <span className="data-label text-white/75">{nacionalidad}</span>
             </div>
-            <span className="text-xs font-mono font-bold tracking-widest bg-white/10 px-2 py-1 rounded text-white">{iniciales}</span>
+            <span className="font-mono text-[10px] font-bold tracking-[0.14em] bg-white/10 px-2 py-1 text-white border border-white/10">{iniciales}</span>
           </div>
 
           {/* Name */}
           <h3
             ref={nameRef}
-            className="text-3xl font-racing text-white leading-none uppercase tracking-wide mb-1 transition-colors duration-300"
+            className="text-3xl font-racing italic text-white leading-none uppercase tracking-normal mb-2 transition-colors duration-300"
           >
             {piloto.full_name}
           </h3>
 
-          {/* Team */}
-          <div className="flex items-center space-x-2 pt-2 border-t border-white/10">
+          <div className="flex items-center space-x-2 pt-3 border-t border-white/10">
             <img
               src={getTeamLogo(piloto.team_name)}
               alt=""
               className="w-5 h-5 object-contain"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
-            <span className="text-sm font-sans font-semibold text-gray-400 uppercase tracking-wider line-clamp-1">
+            <span className="data-label text-white/50 line-clamp-1">
               {piloto.team_name}
             </span>
           </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="border border-white/10 bg-black/20 px-2 py-2">
+              <p className="data-label">POS</p>
+              <p className="data-value text-lg">{piloto.position || '-'}</p>
+            </div>
+            <div className="border border-white/10 bg-black/20 px-2 py-2">
+              <p className="data-label">Pts</p>
+              <p className="data-value text-lg">{piloto.points || 0}</p>
+            </div>
+            <div className="border border-white/10 bg-black/20 px-2 py-2">
+              <p className="data-label">WIN</p>
+              <p className="data-value text-lg">{piloto.wins || 0}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Neon Border Glow */}
-        <div className="absolute inset-0 rounded-[2rem] pointer-events-none border border-transparent group-hover:border-white/20 transition-colors duration-500" style={{ transform: 'translateZ(10px)' }} />
+        <div className="absolute inset-0 pointer-events-none border border-transparent group-hover:border-white/20 transition-colors duration-500" style={{ transform: 'translateZ(10px)' }} />
       </div>
     </div>
   );

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import gsap from 'gsap';
 import { getDrivers, getDriverStandings, getDriverSeasonStatsFromErgast } from '../services/openf1Service';
-import CardPiloto from '../components/pilotos/CardPiloto';
 import Loader from '../components/ui/Loader';
-import { X, User, Flag, Hash, Shield, Info, Trophy, Medal, Target, Gauge, Timer, TrendingUp } from 'lucide-react';
+import { X, User, Users, Flag, Hash, Shield, Info, Trophy, Medal, Target, Gauge, Timer, TrendingUp, Search, ListFilter } from 'lucide-react';
 import { getDriverNationality } from '../utils/nationalityUtils';
 import { getDriverFlag } from '../utils/flagUtils.jsx';
 import { getTeamLogo, getTeamColor, getDriverPhoto } from '../utils/formatUtils';
@@ -16,6 +15,8 @@ const Pilotos = () => {
   const [shouldRenderModal, setShouldRenderModal] = useState(false);
   const [seasonStats, setSeasonStats] = useState(null);
   const [seasonStatsLoading, setSeasonStatsLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const { selectedYear } = useYear();
 
   // Refs para animaciones
@@ -87,59 +88,37 @@ const Pilotos = () => {
     return na - nb;
   });
 
-  // Animación de entrada del header y grid
+  const championshipSortedPilotos = [...pilotos].sort((a, b) => {
+    const posA = Number(a.position || 999);
+    const posB = Number(b.position || 999);
+    if (posA !== posB) return posA - posB;
+    return Number(b.points || 0) - Number(a.points || 0);
+  });
+
+  const teamOptions = Array.from(new Set(sortedPilotos.map((piloto) => piloto.team_name).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+  const visiblePilotos = championshipSortedPilotos.filter((piloto) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const matchesQuery = !normalizedQuery ||
+      String(piloto.full_name || '').toLowerCase().includes(normalizedQuery) ||
+      String(piloto.name_acronym || '').toLowerCase().includes(normalizedQuery) ||
+      String(piloto.driver_number || '').toLowerCase().includes(normalizedQuery) ||
+      String(piloto.team_name || '').toLowerCase().includes(normalizedQuery);
+    const matchesTeam = selectedTeamFilter === 'all' || piloto.team_name === selectedTeamFilter;
+    return matchesQuery && matchesTeam;
+  });
+
   useEffect(() => {
     if (loading) return;
 
     const ctx = gsap.context(() => {
-      // Header animation
       if (headerRef.current) {
-        gsap.fromTo(
-          headerRef.current,
-          { opacity: 0, y: -30, scale: 0.9 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power3.out' }
-        );
-
-        const title = headerRef.current.querySelector('h1');
-        const subtitle = headerRef.current.querySelector('p');
-        const badge = headerRef.current.querySelector('.badge');
-
-        if (title) {
-          gsap.fromTo(title, { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.8, delay: 0.2, ease: 'power3.out' });
-        }
-        if (badge) {
-          gsap.fromTo(badge, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, delay: 0.5, ease: 'back.out(2)' });
-        }
-        if (subtitle) {
-          gsap.fromTo(subtitle, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, delay: 0.4, ease: 'power2.out' });
-        }
+        gsap.from(headerRef.current, { y: -16, duration: 0.45, ease: 'power2.out' });
       }
 
-      // Grid animation
       if (gridRef.current) {
-        gsap.fromTo(
-          gridRef.current,
-          { opacity: 0, scale: 0.95 },
-          { opacity: 1, scale: 1, duration: 0.6, delay: 0.1, ease: 'power2.out' }
-        );
-      }
-
-      // Cards stagger animation
-      const validCards = cardRefs.current.filter(Boolean);
-      if (validCards.length > 0) {
-        gsap.fromTo(
-          validCards,
-          { opacity: 0, y: 50, rotateX: -15 },
-          {
-            opacity: 1,
-            y: 0,
-            rotateX: 0,
-            duration: 0.5,
-            stagger: 0.05,
-            delay: 0.2,
-            ease: 'power3.out',
-          }
-        );
+        gsap.from(gridRef.current, { y: 16, duration: 0.45, ease: 'power2.out' });
       }
     });
 
@@ -464,48 +443,170 @@ const Pilotos = () => {
   }
 
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 overflow-x-hidden">
-      <div ref={headerRef} className="mb-12 mt-4" style={{ opacity: 0 }}>
-        <h1 className="text-6xl md:text-8xl font-racing text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-4 tracking-tight uppercase">
-          PILOTOS
-          <span className="inline-block ml-6 px-4 py-2 rounded-full border border-f1-red/30 bg-f1-red/10 text-xl font-sans text-f1-red font-bold align-middle shadow-[0_0_15px_rgba(225,6,0,0.2)]">
-            T {selectedYear}
-          </span>
-        </h1>
-        <p className="text-white/60 text-xl font-sans">
-          La parrilla al completo de la temporada {selectedYear}
-        </p>
-      </div>
-
-      {/* Grid de pilotos */}
-      <div className="mb-6">
-        {sortedPilotos.length === 0 ? (
-          <div className="glass rounded-2xl p-8 text-center">
-            <p className="text-white/85 font-semibold mb-2">No hay pilotos disponibles todavía</p>
-            <p className="text-white/60 text-sm">
-              Estamos esperando la publicación oficial de la parrilla para la temporada {selectedYear}.
-            </p>
+    <div className="control-page">
+      <div className="race-shell control-shell">
+        <aside className="race-rail flex min-h-0 flex-col overflow-y-auto" data-lenis-prevent>
+          <div className="hud-kicker mb-5">
+            <Users className="h-3.5 w-3.5" />
+            Parrilla
           </div>
-        ) : (
-          <div
-            ref={gridRef}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
-            style={{ opacity: 0 }}
-          >
-            {sortedPilotos.map((piloto, index) => (
-              <div
-                key={piloto.driver_number || piloto.name_acronym || piloto.full_name || index}
-                ref={(el) => (cardRefs.current[index] = el)}
-                style={{ opacity: 0 }}
-              >
-                <CardPiloto
-                  piloto={piloto}
-                  onClick={() => handleClickPiloto(piloto)}
+          <h1 className="font-racing text-[2rem] italic leading-none text-white">Pilotos</h1>
+          <p className="mt-3 text-sm text-white/58">
+            La parrilla se lee como una torre de tiempos: posición, piloto, equipo y puntos visibles de un vistazo.
+          </p>
+
+          <div className="mt-6 space-y-3">
+            <label className="block">
+              <span className="data-label mb-2 block">Buscar</span>
+              <div className="flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-2">
+                <Search className="h-4 w-4 text-white/45" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+                  placeholder="Nombre, dorsal, equipo"
                 />
               </div>
-            ))}
+            </label>
+
+            <label className="block">
+              <span className="data-label mb-2 block">Equipo</span>
+              <div className="flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-2">
+                <ListFilter className="h-4 w-4 text-white/45" />
+                <select
+                  value={selectedTeamFilter}
+                  onChange={(event) => setSelectedTeamFilter(event.target.value)}
+                  className="w-full bg-transparent text-sm text-white outline-none"
+                >
+                  <option className="bg-f1-dark" value="all">Todos los equipos</option>
+                  {teamOptions.map((team) => (
+                    <option className="bg-f1-dark" key={team} value={team}>{team}</option>
+                  ))}
+                </select>
+              </div>
+            </label>
           </div>
-        )}
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="border border-white/10 bg-black/20 p-3">
+              <p className="data-label">Pilotos</p>
+              <p className="data-value mt-1 text-2xl">{visiblePilotos.length}</p>
+            </div>
+            <div className="border border-white/10 bg-black/20 p-3">
+              <p className="data-label">Equipos</p>
+              <p className="data-value mt-1 text-2xl">{teamOptions.length}</p>
+            </div>
+          </div>
+        </aside>
+
+        <main className="control-main">
+          <header ref={headerRef} className="race-module shrink-0">
+            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="hud-kicker mb-4">Temporada {selectedYear}</div>
+                <h2 className="font-racing text-4xl italic leading-none text-white sm:text-6xl">Pilotos</h2>
+                <p className="mt-3 max-w-3xl text-sm text-white/60">
+                  Posición, dorsal, equipo y rendimiento de temporada en una lectura compacta de parrilla.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-3">
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">P1</p>
+                  <p className="data-value mt-1 truncate">{championshipSortedPilotos[0]?.name_acronym || '-'}</p>
+                </div>
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">Máx. pts</p>
+                  <p className="data-value mt-1">{championshipSortedPilotos[0]?.points || 0}</p>
+                </div>
+                <div className="border border-white/10 bg-black/25 px-3 py-2">
+                  <p className="data-label">Mostrados</p>
+                  <p className="data-value mt-1">{visiblePilotos.length}</p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {sortedPilotos.length === 0 ? (
+            <div className="race-module text-center">
+              <p className="text-white/85 font-semibold mb-2">No hay pilotos disponibles todavía</p>
+              <p className="text-white/60 text-sm">
+                Estamos esperando la publicación oficial de la parrilla para la temporada {selectedYear}.
+              </p>
+            </div>
+          ) : (
+            <div ref={gridRef} className="race-module flex min-h-0 flex-1 flex-col">
+              <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+                <div className="hidden grid-cols-[4rem_4.5rem_1fr_1fr_5rem_5rem] gap-3 border-b border-white/10 pb-2 data-label md:grid">
+                  <span>Pos</span>
+                  <span>Dorsal</span>
+                  <span>Piloto</span>
+                  <span>Equipo</span>
+                  <span>Pts</span>
+                  <span>Wins</span>
+                </div>
+                <div className="control-scroll mt-3 space-y-2" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+                  {visiblePilotos.map((piloto, index) => {
+                    const teamColor = piloto.team_colour ? `#${piloto.team_colour.replace('#', '')}` : getTeamColor(piloto.team_name);
+                    const photo = getDriverPhoto(piloto);
+                    const flag = getDriverFlag(piloto);
+
+                    return (
+                      <button
+                        key={piloto.driver_number || piloto.name_acronym || piloto.full_name || index}
+                        ref={(el) => (cardRefs.current[index] = el)}
+                        type="button"
+                        onClick={() => handleClickPiloto(piloto)}
+                        className="timing-row w-full grid-cols-[3rem_1fr_auto] text-left md:grid-cols-[4rem_4.5rem_1fr_1fr_5rem_5rem]"
+                        style={{ borderLeft: `4px solid ${teamColor}` }}
+                      >
+                        <span className="data-value text-f1-copper">{piloto.position ? `P${piloto.position}` : '-'}</span>
+                        <span className="hidden font-mono text-sm font-bold text-white/80 md:block">#{piloto.driver_number || '?'}</span>
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="relative h-10 w-10 shrink-0 overflow-hidden border border-white/15 bg-black/35">
+                            {photo ? (
+                              <img
+                                src={photo}
+                                alt=""
+                                className="h-full w-full object-cover object-top"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-white/45">
+                                <User className="h-4 w-4" />
+                              </span>
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-white">{piloto.full_name}</span>
+                            <span className="flex items-center gap-2 text-xs text-white/45 md:hidden">
+                              {flag && <img src={flag} alt="" className="h-3 w-4 object-cover" />}
+                              #{piloto.driver_number || '?'} · {piloto.team_name}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="hidden min-w-0 items-center gap-2 md:flex">
+                          <img
+                            src={getTeamLogo(piloto.team_name)}
+                            alt=""
+                            className="h-5 w-5 object-contain"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <span className="truncate text-sm text-white/70">{piloto.team_name}</span>
+                        </span>
+                        <span className="data-value justify-self-end md:justify-self-start">{piloto.points || 0}</span>
+                        <span className="hidden data-value md:block">{piloto.wins || 0}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
 
       {/* Modal */}
@@ -523,7 +624,7 @@ const Pilotos = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <div
               ref={modalContentRef}
-              className="glass rounded-3xl p-4 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto relative"
+              className="glass p-4 sm:p-7 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative"
                 style={{
                   opacity: 0,
                   background: pilotoSeleccionado.team_colour
@@ -542,7 +643,7 @@ const Pilotos = () => {
                   {selectedDriverPhoto ? (
                     <div
                       ref={modalImageRef}
-                      className="w-32 h-32 rounded-2xl overflow-hidden bg-gradient-f1 shadow-2xl shadow-f1-red/30 flex-shrink-0"
+                      className="w-28 h-32 sm:w-32 sm:h-36 overflow-hidden bg-gradient-f1 shadow-2xl shadow-f1-red/20 flex-shrink-0 border border-white/15"
                       style={{ opacity: 0 }}
                     >
                       <img
@@ -566,7 +667,7 @@ const Pilotos = () => {
                   ) : (
                     <div
                       ref={modalImageRef}
-                      className="w-32 h-32 rounded-2xl bg-gradient-f1 flex items-center justify-center shadow-2xl shadow-f1-red/30 flex-shrink-0"
+                      className="w-28 h-32 sm:w-32 sm:h-36 bg-gradient-f1 flex items-center justify-center shadow-2xl shadow-f1-red/20 flex-shrink-0 border border-white/15"
                       style={{ opacity: 0 }}
                     >
                       <span className="text-5xl font-bold text-white">
@@ -576,10 +677,11 @@ const Pilotos = () => {
                   )}
 
                   <div className="flex-1">
-                    <h2 className="text-4xl font-bold text-white mb-2">
+                    <p className="data-label mb-2">Ficha de piloto</p>
+                    <h2 className="text-4xl sm:text-5xl font-racing italic text-white leading-none mb-2">
                       {pilotoSeleccionado.full_name}
                     </h2>
-                    <p className="text-white/60 text-lg">
+                    <p className="text-white/60 text-base">
                       {pilotoSeleccionado.team_name || 'Equipo no disponible'}
                     </p>
                   </div>
@@ -590,7 +692,7 @@ const Pilotos = () => {
                   onClick={handleCerrarModal}
                   onMouseEnter={(e) => handleCloseHover(e, true)}
                   onMouseLeave={(e) => handleCloseHover(e, false)}
-                  className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-11 h-11 border border-white/10 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors flex-shrink-0"
                   aria-label="Cerrar modal"
                 >
                   <X className="w-6 h-6 text-white" />
@@ -605,7 +707,7 @@ const Pilotos = () => {
                     ref={(el) => (modalStatsRef.current[index] = el)}
                     onMouseEnter={(e) => handleStatHover(e, true, pilotoSeleccionado.team_colour)}
                     onMouseLeave={(e) => handleStatHover(e, false, pilotoSeleccionado.team_colour)}
-                    className="glass-dark rounded-xl p-4 relative overflow-hidden cursor-pointer"
+                    className="glass-dark p-4 relative overflow-hidden cursor-pointer"
                     style={{ opacity: 0 }}
                   >
                     <div className="flex items-center space-x-2 mb-2">
@@ -632,7 +734,7 @@ const Pilotos = () => {
               </div>
 
               {/* Rendimiento temporada */}
-              <div className="glass-dark rounded-xl p-4 sm:p-5 mb-6">
+              <div className="glass-dark p-4 sm:p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-yellow-300" />
@@ -650,7 +752,7 @@ const Pilotos = () => {
                       ref={(el) => (modalStatsRef.current[index + basicStats.length] = el)}
                       onMouseEnter={(e) => handleStatHover(e, true, pilotoSeleccionado.team_colour)}
                       onMouseLeave={(e) => handleStatHover(e, false, pilotoSeleccionado.team_colour)}
-                      className="rounded-xl border border-white/10 bg-black/25 px-3 py-3"
+                      className="border border-white/10 bg-black/25 px-3 py-3"
                       style={{ opacity: 0 }}
                     >
                       <div className="flex items-center gap-2 mb-1.5">
@@ -667,7 +769,7 @@ const Pilotos = () => {
               {pilotoSeleccionado.team_name && pilotoSeleccionado.team_colour && (
                 <div
                   ref={modalTeamRef}
-                  className="glass-dark rounded-xl p-6 mb-6 relative overflow-hidden"
+                  className="glass-dark p-6 mb-6 relative overflow-hidden"
                   style={{ opacity: 0 }}
                 >
                   <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
@@ -680,7 +782,7 @@ const Pilotos = () => {
 
                   <div className="flex items-center space-x-4">
                     <div
-                      className="w-16 h-16 rounded-xl shadow-lg relative bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center overflow-hidden"
+                      className="w-16 h-16 shadow-lg relative bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center overflow-hidden"
                       style={{
                         boxShadow: `0 8px 20px rgba(${hexToRgb(pilotoSeleccionado.team_colour).r}, ${hexToRgb(pilotoSeleccionado.team_colour).g}, ${hexToRgb(pilotoSeleccionado.team_colour).b}, 0.4)`
                       }}
@@ -712,7 +814,7 @@ const Pilotos = () => {
               )}
 
               {/* Info Note */}
-              <div className="glass-dark rounded-xl p-4 flex items-start space-x-3">
+              <div className="glass-dark p-4 flex items-start space-x-3">
                 <Info className="w-5 h-5 text-f1-red flex-shrink-0 mt-0.5" />
                 <p className="text-white/70 text-sm">
                   Perfil y métricas de la temporada {selectedYear} con datos oficiales de OpenF1 y Ergast/Jolpica.

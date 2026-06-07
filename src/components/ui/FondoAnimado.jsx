@@ -1,98 +1,64 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 
-/**
- * Componente de fondo animado con efecto de partículas y gradientes
- * Crea una atmósfera "liquid glass" sutil
- */
 const FondoAnimado = () => {
-  const gradientRef = useRef(null);
-  const particlesRef = useRef([]);
-
-  // Generamos partículas decorativas
-  const particulas = useMemo(() => Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 100 + 50,
-    duration: Math.random() * 10 + 10,
-    delay: Math.random() * 5,
-  })), []);
+  const laneRef = useRef(null);
+  const scanRef = useRef(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return undefined;
+    }
+
     const ctx = gsap.context(() => {
-      // Animación del gradiente
-      if (gradientRef.current) {
-        gsap.to(gradientRef.current, {
-          opacity: 0.2,
-          scale: 1.1,
-          duration: 4,
+      if (laneRef.current) {
+        gsap.to(laneRef.current, {
+          backgroundPosition: '220px 220px',
+          duration: 18,
           repeat: -1,
-          yoyo: true,
-          ease: 'power1.inOut'
+          ease: 'none'
         });
       }
 
-      // Animación de partículas
-      particlesRef.current.forEach((particle, index) => {
-        if (!particle) return;
-        const data = particulas[index];
-        
-        gsap.fromTo(particle,
-          {
-            y: `${data.y}vh`,
-            scale: 0,
-            opacity: 0
-          },
-          {
-            y: `${data.y - 20}vh`,
-            scale: 1,
-            opacity: 0.15,
-            duration: data.duration / 2,
-            delay: data.delay,
-            repeat: -1,
-            yoyo: true,
-            ease: 'power1.inOut'
-          }
-        );
-      });
+      if (scanRef.current) {
+        gsap.to(scanRef.current, {
+          yPercent: 100,
+          duration: 7,
+          repeat: -1,
+          ease: 'none'
+        });
+      }
     });
 
     return () => ctx.revert();
-  }, [particulas]);
+  }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Gradiente base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-f1-dark via-f1-gray to-f1-dark" />
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none bg-f1-dark">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,180,167,0.12),transparent_38rem),linear-gradient(135deg,#120806_0%,#210e0b_52%,#15151e_100%)]" />
 
-      {/* Gradiente animado sutil */}
       <div
-        ref={gradientRef}
-        className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-f1-red/10 via-transparent to-f1-red/5"
-        style={{ opacity: 0.1 }}
+        ref={laneRef}
+        className="absolute inset-0 opacity-70"
+        style={{
+          backgroundImage: [
+            'linear-gradient(rgba(255,180,167,0.06) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(255,180,167,0.045) 1px, transparent 1px)',
+            'repeating-linear-gradient(135deg, transparent 0 42px, rgba(255,85,61,0.08) 42px 44px, transparent 44px 88px)'
+          ].join(', '),
+          backgroundSize: '32px 32px, 32px 32px, 220px 220px'
+        }}
       />
 
-      {/* Partículas flotantes */}
-      {particulas.map((particula, index) => (
-        <div
-          key={particula.id}
-          ref={(el) => (particlesRef.current[index] = el)}
-          className="absolute rounded-full blur-3xl"
-          style={{
-            left: `${particula.x}vw`,
-            top: `${particula.y}vh`,
-            width: particula.size,
-            height: particula.size,
-            background: `radial-gradient(circle, rgba(225, 6, 0, 0.2) 0%, transparent 70%)`,
-            opacity: 0,
-            transform: 'scale(0)'
-          }}
-        />
-      ))}
+      <div className="absolute inset-y-0 left-[12%] w-px bg-gradient-to-b from-transparent via-f1-copper/25 to-transparent" />
+      <div className="absolute inset-y-0 right-[18%] w-px bg-gradient-to-b from-transparent via-f1-red/20 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-black/65 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent" />
 
-      {/* Efecto de grid sutil */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100px_100px]" />
+      <div
+        ref={scanRef}
+        className="absolute -top-1/2 left-0 right-0 h-1/2 bg-gradient-to-b from-transparent via-white/[0.035] to-transparent"
+      />
     </div>
   );
 };
